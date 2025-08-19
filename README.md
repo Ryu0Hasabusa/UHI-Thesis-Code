@@ -1,5 +1,7 @@
 # UHI-Thesis-Code
 
+[![LCZ Map Workflow](https://github.com/Ryu0Hasabusa/UHI-Thesis-Code/actions/workflows/lcz.yml/badge.svg)](https://github.com/Ryu0Hasabusa/UHI-Thesis-Code/actions/workflows/lcz.yml)
+
 Workflow for generating Local Climate Zone (LCZ) map and optional satellite datasets (MODIS LST, Landsat) for Greater Tunis.
 
 ## Structure
@@ -11,7 +13,7 @@ Scripts:
 - `run_lcz_only.R` – build ROI + generate LCZ raster & preview PNG.
 - `run_lcz_modis.R` – LCZ + latest available MODIS MOD11A1 (Day/Night LST) within last ~7 days (needs EARTHDATA credentials).
 - `run_lcz_landsat.R` – LCZ + latest low-cloud Landsat Collection 2 Level-2 surface reflectance + thermal stack.
-- Deprecated stubs kept temporarily: `setup_and_run.R`, `get_modis_latest.R`, `get_landsat_latest.R` (each immediately stops with a message). These can be deleted once no external references remain.
+	(Legacy combined/old helper scripts were removed in refactor 2025-08-19.)
 
 Config file: `scripts/roi_config.json` (can override ROI behavior). Environment variables override JSON.
 
@@ -66,8 +68,18 @@ Optional env vars:
 
 Environment variables `GT_USE_EXACT` / `GT_MANUAL_BBOX` override JSON values.
 
-## Housekeeping
-Remove deprecated stub scripts once no external automation references them.
+## GitHub Actions workflow
+The included workflow `/.github/workflows/lcz.yml` runs weekly (cron) and can be triggered manually. It:
+1. Sets up R and system libraries (GDAL, PROJ, GEOS, udunits).
+2. Runs `setup.R` then `run_lcz_only.R`.
+3. If `EARTHDATA_USER` / `EARTHDATA_PASS` secrets are defined, also runs `run_lcz_modis.R`.
+4. Uploads the `greater_tunis_lcz_repo/output/` directory as an artifact named `lcz-output`.
+
+To enable MODIS in CI, add repository secrets:
+- `EARTHDATA_USER`
+- `EARTHDATA_PASS`
+
+To add Landsat in CI, duplicate the MODIS step with `run_lcz_landsat.R` or extend the workflow.
 
 ## Troubleshooting
 - Missing packages: rerun `setup.R`.
