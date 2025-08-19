@@ -15,6 +15,7 @@ jobs:
       LCZ4R_GITHUB_REF: main
       GT_USE_EXACT: 'TRUE'
       ENABLE_MODIS: 'FALSE'
+  ENABLE_LANDSAT: 'FALSE'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,6 +42,7 @@ jobs:
           path: |
             output/*
             output/MODIS/**
+            output/LANDSAT/**
       - name: Commit updated outputs (if changed)
         run: |
           git config user.name 'github-actions'

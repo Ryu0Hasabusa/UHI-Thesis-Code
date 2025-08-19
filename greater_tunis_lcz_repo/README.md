@@ -9,6 +9,7 @@ Self-contained structure to generate the Greater Tunis Local Climate Zone (LCZ) 
 - `renv/` infrastructure: (You can initialize to lock package versions.)
 - `.github/workflows/build-map.yml` : CI workflow to run the script and upload artifacts.
 - `scripts/get_modis_latest.R` : Optional automatic fetch of the latest MOD11A1 LST (Day & Night) tiles.
+- `scripts/get_landsat_latest.R` : Optional STAC-based download of a recent low-cloud Landsat C2 L2 scene.
 
 ## Quick Start (Local)
 ```r
@@ -26,6 +27,11 @@ Outputs land in `output/`.
 | `GT_USE_EXACT` | Use exact OSM polygons first | `TRUE` |
 | `GT_MANUAL_BBOX` | xmin,xmax,ymin,ymax | (none) |
 | `ENABLE_MODIS` | If TRUE, download latest MOD11A1 | `FALSE` |
+| `ENABLE_LANDSAT` | If TRUE, fetch latest Landsat scene | `FALSE` |
+| `LANDSAT_START` | Landsat search start date | `today-30d` |
+| `LANDSAT_END` | Landsat search end date | `today` |
+| `LANDSAT_MAX_CLOUD` | Max cloud % filter | `10` |
+| `LANDSAT_BANDS` | Comma list bands to download | `SR_B2,..,ST_B10,QA_PIXEL` |
 | `EARTHDATA_USER` | NASA Earthdata username (for MODIS) | (none) |
 | `EARTHDATA_PASS` | NASA Earthdata password (for MODIS) | (none) |
 

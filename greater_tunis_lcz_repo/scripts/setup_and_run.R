@@ -7,6 +7,9 @@ required_cran <- c("remotes","terra","sf","osmdata","jsonlite")
 if (tolower(Sys.getenv("ENABLE_MODIS","FALSE")) %in% c("true","1","yes")) {
   required_cran <- unique(c(required_cran, "MODIStsp"))
 }
+if (tolower(Sys.getenv("ENABLE_LANDSAT","FALSE")) %in% c("true","1","yes")) {
+  required_cran <- unique(c(required_cran, "rstac"))
+}
 missing <- setdiff(required_cran, rownames(installed.packages()))
 if (length(missing)) {
   install.packages(missing)
@@ -145,4 +148,10 @@ message("Done.")
 if (tolower(Sys.getenv("ENABLE_MODIS","FALSE")) %in% c("true","1","yes")) {
   message("ENABLE_MODIS=TRUE: attempting latest MODIS MOD11A1 download…")
   try(source("scripts/get_modis_latest.R"), silent = FALSE)
+}
+
+# Optional: fetch latest Landsat scene (surface reflectance + LST) via STAC
+if (tolower(Sys.getenv("ENABLE_LANDSAT","FALSE")) %in% c("true","1","yes")) {
+  message("ENABLE_LANDSAT=TRUE: attempting Landsat STAC download…")
+  try(source("scripts/get_landsat_latest.R"), silent = FALSE)
 }
