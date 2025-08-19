@@ -1,4 +1,8 @@
 #!/usr/bin/env Rscript
-# Simple entry: generate LCZ map only
-Sys.setenv(ENABLE_MODIS = "FALSE", ENABLE_LANDSAT = "FALSE")
-source("scripts/setup_and_run.R")
+# Run: Generate ONLY the LCZ map for Greater Tunis (dependencies must already be installed via setup.R)
+source("scripts/common.R")
+
+message("== Run: LCZ map only ==")
+roi <- build_roi()
+generate_lcz_map(roi)
+message("Done.")

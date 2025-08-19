@@ -1,68 +1,60 @@
-# Greater Tunis LCZ Map (Standalone Repo Template)
+# Greater Tunis LCZ Map
 
-Self-contained structure to generate the Greater Tunis Local Climate Zone (LCZ) map using the LCZ4r package.
+Lightweight scripts to generate the Greater Tunis Local Climate Zone (LCZ) map and optionally fetch latest MODIS LST or a recent low‑cloud Landsat scene using the `LCZ4r` package.
 
-## Contents
+## Scripts
+| File | Purpose |
+|------|---------|
+| `scripts/setup.R` | One‑time installation of dependencies + `LCZ4r` (local or GitHub). |
+| `scripts/common.R` | Shared functions: ROI build, LCZ map generation, MODIS & Landsat download helpers. |
+| `scripts/run_lcz_only.R` | Build ROI and generate LCZ raster + PNG. |
+| `scripts/run_lcz_modis.R` | LCZ + latest MODIS MOD11A1 Day/Night LST (needs Earthdata creds). |
+| `scripts/run_lcz_landsat.R` | LCZ + latest low‑cloud Landsat C2 L2 surface reflectance + thermal stack. |
+| `scripts/roi_config.json` | Optional ROI configuration (exact polygons / manual bbox). |
 
-- `scripts/setup_and_run.R` : Installs dependencies (prefers local LCZ4r or GitHub) and produces the LCZ map.
-- `scripts/roi_config.json` : Optional override configuration (bbox, flags).
-- `renv/` infrastructure: (You can initialize to lock package versions.)
-- `.github/workflows/build-map.yml` : CI workflow to run the script and upload artifacts.
-- `scripts/get_modis_latest.R` : Optional automatic fetch of the latest MOD11A1 LST (Day & Night) tiles.
-- `scripts/get_landsat_latest.R` : Optional STAC-based download of a recent low-cloud Landsat C2 L2 scene.
-- Wrapper runners:
-	- `scripts/run_lcz_only.R` : LCZ map only.
-	- `scripts/run_lcz_modis.R` : LCZ + latest MODIS LST.
-	- `scripts/run_lcz_landsat.R` : LCZ + latest Landsat scene.
+Deprecated legacy scripts (`setup_and_run.R`, `get_modis_latest.R`, `get_landsat_latest.R`) have been replaced internally—remove them once no external tooling calls them.
 
-## Quick Start (Local)
+## Quick Start
+One‑time setup (from repository root):
 ```r
-source("scripts/setup_and_run.R")
+Rscript greater_tunis_lcz_repo/scripts/setup.R
 ```
-Or choose a preset wrapper:
+
+Generate LCZ only:
 ```r
-source("scripts/run_lcz_only.R")       # LCZ only
-source("scripts/run_lcz_modis.R")      # LCZ + MODIS (needs EARTHDATA creds)
-source("scripts/run_lcz_landsat.R")    # LCZ + Landsat
+Rscript greater_tunis_lcz_repo/scripts/run_lcz_only.R
 ```
-Outputs land in `output/`.
 
-## Environment Variables
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `LCZ4R_LOCAL_PATH` | Local path to LCZ4r source | `../LCZ4r` |
-| `LCZ4R_GITHUB_REPO`| GitHub repo for LCZ4r | `ByMaxAnjos/LCZ4r` |
-| `LCZ4R_GITHUB_REF` | Git ref (branch/tag/commit) | `main` |
-| `LCZ4R_FORCE_REINSTALL` | Force reinstall LCZ4r | `FALSE` |
-| `GT_USE_EXACT` | Use exact OSM polygons first | `TRUE` |
-| `GT_MANUAL_BBOX` | xmin,xmax,ymin,ymax | (none) |
-| `ENABLE_MODIS` | If TRUE, download latest MOD11A1 | `FALSE` |
-| `ENABLE_LANDSAT` | If TRUE, fetch latest Landsat scene | `FALSE` |
-| `LANDSAT_START` | Landsat search start date | `today-30d` |
-| `LANDSAT_END` | Landsat search end date | `today` |
-| `LANDSAT_MAX_CLOUD` | Max cloud % filter | `10` |
-| `LANDSAT_BANDS` | Comma list bands to download | `SR_B2,..,ST_B10,QA_PIXEL` |
-| `EARTHDATA_USER` | NASA Earthdata username (for MODIS) | (none) |
-| `EARTHDATA_PASS` | NASA Earthdata password (for MODIS) | (none) |
+LCZ + MODIS (needs credentials):
+```powershell
+$env:EARTHDATA_USER = "your_username"
+$env:EARTHDATA_PASS = "your_password"
+Rscript greater_tunis_lcz_repo/scripts/run_lcz_modis.R
+```
 
-You can also supply a config JSON (`scripts/roi_config.json`) with keys `manual_bbox` and `use_exact`; env vars override JSON.
-
-## CI
-The provided GitHub Actions workflow:
-- Sets up R and system deps (sf / terra requirements on Linux).
-- Installs LCZ4r and runs the script.
-- Uploads resulting TIFF + ROI geopackage as artifacts.
-- If `ENABLE_MODIS` and credentials secrets are provided, also downloads latest MOD11A1 and stores under `output/MODIS/MOD11A1`.
-
-To enable: copy this directory as a repo root and push. Optionally enable Actions in repo settings.
-
-## Reproducibility
-You can initialize renv:
+LCZ + Landsat:
 ```r
-install.packages("renv")
-renv::init()
+Rscript greater_tunis_lcz_repo/scripts/run_lcz_landsat.R
 ```
-Then re-run the script; a lockfile will capture versions.
+
+Outputs are written under `greater_tunis_lcz_repo/output/`:
+- `lcz_map_greater_tunis.tif`, `lcz_map_greater_tunis.png`, `greater_tunis_roi.gpkg`
+- Subfolders: `MODIS/` and `LANDSAT/` when respective downloads occur
+
+## Configuration
+Priority: Environment variable > `roi_config.json` > internal defaults.
+
+Key environment variables:
+- `LCZ4R_LOCAL_PATH`, `LCZ4R_GITHUB_REPO`, `LCZ4R_GITHUB_REF`, `LCZ4R_FORCE_REINSTALL`
+- `GT_USE_EXACT` (TRUE/FALSE), `GT_MANUAL_BBOX` (xmin,xmax,ymin,ymax)
+- MODIS: `EARTHDATA_USER`, `EARTHDATA_PASS`
+- Landsat: `LANDSAT_START`, `LANDSAT_END`, `LANDSAT_MAX_CLOUD`, `LANDSAT_BANDS`
+
+## Troubleshooting
+- Missing packages: re-run `setup.R`.
+- MODIS failures: check credentials or wait for data availability (may lag UTC date).
+- Landsat no scene: relax `LANDSAT_MAX_CLOUD` or widen date range.
+- Manual ROI: set `GT_MANUAL_BBOX` or edit `roi_config.json`.
 
 ## License
-MIT for script scaffolding. LCZ4r retains its own license.
+MIT for these helper scripts. Refer to `LCZ4r` for its own licensing.
