@@ -10,10 +10,20 @@ Self-contained structure to generate the Greater Tunis Local Climate Zone (LCZ) 
 - `.github/workflows/build-map.yml` : CI workflow to run the script and upload artifacts.
 - `scripts/get_modis_latest.R` : Optional automatic fetch of the latest MOD11A1 LST (Day & Night) tiles.
 - `scripts/get_landsat_latest.R` : Optional STAC-based download of a recent low-cloud Landsat C2 L2 scene.
+- Wrapper runners:
+	- `scripts/run_lcz_only.R` : LCZ map only.
+	- `scripts/run_lcz_modis.R` : LCZ + latest MODIS LST.
+	- `scripts/run_lcz_landsat.R` : LCZ + latest Landsat scene.
 
 ## Quick Start (Local)
 ```r
 source("scripts/setup_and_run.R")
+```
+Or choose a preset wrapper:
+```r
+source("scripts/run_lcz_only.R")       # LCZ only
+source("scripts/run_lcz_modis.R")      # LCZ + MODIS (needs EARTHDATA creds)
+source("scripts/run_lcz_landsat.R")    # LCZ + Landsat
 ```
 Outputs land in `output/`.
 
