@@ -4,6 +4,9 @@
 message("== Greater Tunis LCZ map generation ==")
 
 required_cran <- c("remotes","terra","sf","osmdata","jsonlite")
+if (tolower(Sys.getenv("ENABLE_MODIS","FALSE")) %in% c("true","1","yes")) {
+  required_cran <- unique(c(required_cran, "MODIStsp"))
+}
 missing <- setdiff(required_cran, rownames(installed.packages()))
 if (length(missing)) {
   install.packages(missing)
@@ -137,3 +140,9 @@ dev.off()
 
 message("Saved preview PNG: ", png_file)
 message("Done.")
+
+# Optional: fetch latest MODIS LST (MOD11A1) if enabled
+if (tolower(Sys.getenv("ENABLE_MODIS","FALSE")) %in% c("true","1","yes")) {
+  message("ENABLE_MODIS=TRUE: attempting latest MODIS MOD11A1 download…")
+  try(source("scripts/get_modis_latest.R"), silent = FALSE)
+}

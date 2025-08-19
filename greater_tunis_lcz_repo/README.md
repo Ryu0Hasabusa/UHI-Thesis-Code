@@ -8,6 +8,7 @@ Self-contained structure to generate the Greater Tunis Local Climate Zone (LCZ) 
 - `scripts/roi_config.json` : Optional override configuration (bbox, flags).
 - `renv/` infrastructure: (You can initialize to lock package versions.)
 - `.github/workflows/build-map.yml` : CI workflow to run the script and upload artifacts.
+- `scripts/get_modis_latest.R` : Optional automatic fetch of the latest MOD11A1 LST (Day & Night) tiles.
 
 ## Quick Start (Local)
 ```r
@@ -24,6 +25,9 @@ Outputs land in `output/`.
 | `LCZ4R_FORCE_REINSTALL` | Force reinstall LCZ4r | `FALSE` |
 | `GT_USE_EXACT` | Use exact OSM polygons first | `TRUE` |
 | `GT_MANUAL_BBOX` | xmin,xmax,ymin,ymax | (none) |
+| `ENABLE_MODIS` | If TRUE, download latest MOD11A1 | `FALSE` |
+| `EARTHDATA_USER` | NASA Earthdata username (for MODIS) | (none) |
+| `EARTHDATA_PASS` | NASA Earthdata password (for MODIS) | (none) |
 
 You can also supply a config JSON (`scripts/roi_config.json`) with keys `manual_bbox` and `use_exact`; env vars override JSON.
 
@@ -32,6 +36,7 @@ The provided GitHub Actions workflow:
 - Sets up R and system deps (sf / terra requirements on Linux).
 - Installs LCZ4r and runs the script.
 - Uploads resulting TIFF + ROI geopackage as artifacts.
+- If `ENABLE_MODIS` and credentials secrets are provided, also downloads latest MOD11A1 and stores under `output/MODIS/MOD11A1`.
 
 To enable: copy this directory as a repo root and push. Optionally enable Actions in repo settings.
 

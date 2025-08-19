@@ -14,9 +14,12 @@ jobs:
       LCZ4R_GITHUB_REPO: ByMaxAnjos/LCZ4r
       LCZ4R_GITHUB_REF: main
       GT_USE_EXACT: 'TRUE'
+      ENABLE_MODIS: 'FALSE'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Setup R
         uses: r-lib/actions/setup-r@v2
         with:
@@ -35,7 +38,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lcz-map-output
-          path: output/*
+          path: |
+            output/*
+            output/MODIS/**
       - name: Commit updated outputs (if changed)
         run: |
           git config user.name 'github-actions'
