@@ -1,0 +1,44 @@
+name: LCZ Map
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'  # Weekly Monday 03:00 UTC
+
+jobs:
+  build-lcz:
+    runs-on: ubuntu-latest
+    env:
+      EARTHDATA_USER: ${{ secrets.EARTHDATA_USER }}
+      EARTHDATA_PASS: ${{ secrets.EARTHDATA_PASS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install system deps (sf/terra)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y gdal-bin libgdal-dev libproj-dev libgeos-dev libudunits2-dev
+
+      - name: Run setup
+        run: Rscript greater_tunis_lcz_repo/scripts/setup.R
+
+      - name: Generate LCZ map (only)
+        run: Rscript greater_tunis_lcz_repo/scripts/run_lcz_only.R
+
+      - name: Optionally run MODIS (if creds)
+        if: env.EARTHDATA_USER != '' && env.EARTHDATA_PASS != ''
+        run: Rscript greater_tunis_lcz_repo/scripts/run_lcz_modis.R || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcz-output
+          path: |
+            greater_tunis_lcz_repo/output/**
+          if-no-files-found: warn
