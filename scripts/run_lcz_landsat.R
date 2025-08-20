@@ -58,6 +58,16 @@ normalize_lst <- function(r) {
 message("Processing GEE Landsat outputs ...")
 library(terra)
 gee_dir <- "output/LANDSAT_GEE"
+# Try to read metadata JSON if present to guide scaling decisions
+meta_path <- file.path(gee_dir, "landsat_metadata.json")
+meta <- NULL
+if (file.exists(meta_path)) {
+	meta <- tryCatch(jsonlite::fromJSON(meta_path), error = function(e) NULL)
+	if (!is.null(meta)) {
+		message(sprintf("Metadata: acquisition UTC=%s cloud=%.1f st_c_mean=%s inferred_scale=%s",
+										meta$acquisition_utc, as.numeric(meta$cloud_cover), as.character(meta$st_c_mean), meta$st_c_scale_inferred))
+	}
+}
 gee_files <- list.files(gee_dir, pattern = "\\.tif$", full.names = TRUE)
 if (!length(gee_files)) {
 	message("No GEE output .tif files found in output/LANDSAT_GEE.")
@@ -94,6 +104,11 @@ if (is.null(lst_info)) {
 } else {
 	lst <- lst_info$band
 	names(lst) <- "LST_C"
+	# If metadata suggests ST_C was 0-1 scaled but our heuristic chose another path, enforce scaling
+	if (!is.null(meta) && identical(lst_info$method, "none") && grepl("0-1", meta$st_c_scale_inferred %||% "")) {
+		message("Meta indicates ST_C scaled 0-1; applying *100 post hoc.")
+		lst <- lst * 100
+	}
 	stats <- as.numeric(global(lst, quantile, probs = c(0,0.05,0.5,0.95,1), na.rm = TRUE))
 	message(sprintf("LST source=%s method=%s range=%.2f..%.2f (°C)", lst_info$source, lst_info$method, stats[1], stats[5]))
 	plot(lst, main = "Surface Temperature (°C)")

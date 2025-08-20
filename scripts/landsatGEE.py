@@ -237,20 +237,45 @@ def main():
         scene_center_time = img.get('SCENE_CENTER_TIME').getInfo() if img.get('SCENE_CENTER_TIME') else None
         cloud_cover = img.get('CLOUD_COVER').getInfo() if img.get('CLOUD_COVER') else None
         # ST_C statistics (min, max, mean) using same mask
+        st_c_min = st_c_max = st_c_mean = None
+        st_k_min = st_k_max = st_k_mean = None
+        st_c_scale_inferred = None
         try:
-            stat_dict = img.select(['ST_C']).reduceRegion(
+            stat_c = img.select(['ST_C']).reduceRegion(
                 reducer=ee.Reducer.minMax().combine(reducer2=ee.Reducer.mean(), sharedInputs=True),
                 geometry=AOI,
                 scale=CONFIG['SCALE'],
                 maxPixels=1e13,
                 tileScale=2
             )
-            st_c_min = stat_dict.get('ST_C_min').getInfo()
-            st_c_max = stat_dict.get('ST_C_max').getInfo()
-            st_c_mean = stat_dict.get('ST_C_mean').getInfo()
+            st_c_min = stat_c.get('ST_C_min').getInfo()
+            st_c_max = stat_c.get('ST_C_max').getInfo()
+            st_c_mean = stat_c.get('ST_C_mean').getInfo()
         except Exception as se:
             print(f"[DEBUG] ST_C stats failed: {se}")
-            st_c_min = st_c_max = st_c_mean = None
+        try:
+            stat_k = img.select(['ST_K']).reduceRegion(
+                reducer=ee.Reducer.minMax().combine(reducer2=ee.Reducer.mean(), sharedInputs=True),
+                geometry=AOI,
+                scale=CONFIG['SCALE'],
+                maxPixels=1e13,
+                tileScale=2
+            )
+            st_k_min = stat_k.get('ST_K_min').getInfo()
+            st_k_max = stat_k.get('ST_K_max').getInfo()
+            st_k_mean = stat_k.get('ST_K_mean').getInfo()
+        except Exception as se:
+            print(f"[DEBUG] ST_K stats failed: {se}")
+        # Infer if ST_C looks 0-1 scaled (should roughly track ST_K-273.15)
+        if st_c_max is not None and st_k_max is not None:
+            try:
+                est_celsius_from_k = st_k_max - 273.15
+                if st_c_max < 2 and est_celsius_from_k > 5:
+                    st_c_scale_inferred = 'ST_C appears scaled 0-1 (multiply by ~100)'
+                else:
+                    st_c_scale_inferred = 'ST_C appears already in °C'
+            except Exception:
+                pass
         # Determine latest downloaded stack file (if any)
         latest_stack = None
         try:
@@ -266,6 +291,10 @@ def main():
             'st_c_min': st_c_min,
             'st_c_max': st_c_max,
             'st_c_mean': st_c_mean,
+            'st_k_min': st_k_min,
+            'st_k_max': st_k_max,
+            'st_k_mean': st_k_mean,
+            'st_c_scale_inferred': st_c_scale_inferred,
             'stack_file': latest_stack,
             'area_km2': None,
             'bands_requested': CONFIG.get('SINGLE_FILE_BANDS')
