@@ -230,47 +230,90 @@ import requests
 import zipfile
 from pathlib import Path
 
-def download_ee_url(download_url, out_dir=None, out_name=None):
+def download_ee_url(download_url, out_dir=None, out_name=None, force=False):
+    """Robust download handler.
+
+    Steps:
+      1. Skip if a valid GeoTIFF already exists (unless force=True).
+      2. Stream to temporary file (.part) to avoid leaving corrupt targets.
+      3. Detect ZIP vs GeoTIFF by magic bytes; extract if ZIP.
+      4. Resolve name collisions safely (remove older prior file if needed).
+    """
     print(f"[DEBUG] download_ee_url called with: {download_url}")
     out_dir = Path(out_dir or CONFIG["OUT_DIR"])
     out_dir.mkdir(parents=True, exist_ok=True)
     out_name = out_name or f"landsat_stack{CONFIG['OUT_EXT']}"
-    out_file = out_dir / out_name
+    final_tif = out_dir / out_name
+
+    def _sig(p: Path):
+        try:
+            with open(p, 'rb') as f:
+                return f.read(4)
+        except Exception:
+            return b''
+
+    def _is_geotiff_signature(sig: bytes):
+        return sig.startswith(b'II*') or sig.startswith(b'MM\x00')
+
+    # Skip if existing appears valid
+    if final_tif.exists() and not force:
+        sig = _sig(final_tif)
+        if _is_geotiff_signature(sig):
+            print(f"[DEBUG] Existing valid GeoTIFF present, skipping download: {final_tif.name}")
+            return
+        else:
+            print(f"[DEBUG] Existing file not valid GeoTIFF (sig={sig}); will re-download.")
+
+    tmp_file = final_tif.with_suffix(final_tif.suffix + '.part')
+    if tmp_file.exists():
+        try: tmp_file.unlink()
+        except Exception: pass
+
     try:
         print(f"[DEBUG] Starting download from {download_url} ...")
-        r = requests.get(download_url, stream=True)
+        r = requests.get(download_url, stream=True, timeout=300)
         r.raise_for_status()
-        with open(out_file, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
+        with open(tmp_file, "wb") as f:
+            for chunk in r.iter_content(chunk_size=65536):
                 if chunk:
                     f.write(chunk)
-        print(f"[DEBUG] Saved raw download to {out_file.resolve()} ({out_file.stat().st_size} bytes)")
-        # Inspect magic bytes
-        with open(out_file, 'rb') as f:
-            sig = f.read(4)
+        print(f"[DEBUG] Saved raw download to {tmp_file.resolve()} ({tmp_file.stat().st_size} bytes)")
+        sig = _sig(tmp_file)
         if sig.startswith(b'PK'):
-            # It's a ZIP archive, extract GeoTIFF
-            zip_path = out_file.with_suffix('.zip')
-            out_file.rename(zip_path)
-            print(f"[DEBUG] Detected ZIP (Earth Engine archive). Renamed to {zip_path.name} and extracting...")
+            # ZIP archive -> move to .zip then extract first .tif
+            zip_path = tmp_file.with_suffix('.zip')
+            if zip_path.exists():
+                try: zip_path.unlink()
+                except Exception: pass
+            tmp_file.rename(zip_path)
+            print(f"[DEBUG] Detected ZIP; extracting {zip_path.name} ...")
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 tif_members = [m for m in zf.namelist() if m.lower().endswith('.tif')]
                 if not tif_members:
                     print("[DEBUG] No .tif inside ZIP; contents:", zf.namelist())
-                else:
-                    # Extract first tif
-                    member = tif_members[0]
-                    zf.extract(member, path=zip_path.parent)
-                    extracted = zip_path.parent / member
-                    final_path = zip_path.parent / out_name  # reuse requested name
-                    extracted.rename(final_path)
-                    print(f"[DEBUG] Extracted GeoTIFF to {final_path} (size {final_path.stat().st_size} bytes)")
-            # Optionally keep or remove zip
-            # zip_path.unlink(missing_ok=True)  # uncomment to delete zip
+                    return
+                member = tif_members[0]
+                zf.extract(member, path=zip_path.parent)
+                extracted = zip_path.parent / member
+                if final_tif.exists():
+                    try: final_tif.unlink()
+                    except Exception: pass
+                extracted.rename(final_tif)
+                print(f"[DEBUG] Extracted GeoTIFF to {final_tif} (size {final_tif.stat().st_size} bytes)")
+            # Keep or remove zip (keeping for provenance)
         else:
-            print("[DEBUG] File signature not ZIP; assuming direct GeoTIFF (starts with:", sig, ")")
+            # GeoTIFF directly
+            if final_tif.exists():
+                try: final_tif.unlink()
+                except Exception: pass
+            tmp_file.rename(final_tif)
+            print(f"[DEBUG] Stored GeoTIFF as {final_tif.name}")
     except Exception as e:
         print(f"[DEBUG] Download failed: {e}")
+        # Cleanup temp
+        if tmp_file.exists():
+            try: tmp_file.unlink()
+            except Exception: pass
 
 def adaptive_quick_download(img, region, max_bytes=48*1024*1024):
     """Attempt to get a quick download URL by adapting scale and band set so the estimated size < max_bytes."""

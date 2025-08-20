@@ -7,7 +7,7 @@ generate_lcz_map(roi)
 
 # --- Execute Python EE workflow -------------------------------------------------
 gee_script <- "scripts/landsatGEE.py"
-gee_cmd <- sprintf("python %s", gee_script)
+gee_cmd <- sprintf("python %s", gee_script)  # could add args later e.g. --force
 message("Running GEE Landsat workflow via: ", gee_cmd)
 gee_status <- tryCatch(system(gee_cmd, intern = TRUE), error = function(e) paste("[ERROR]", e$message))
 cat(gee_status, sep = "\n")
