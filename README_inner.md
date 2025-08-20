@@ -17,27 +17,27 @@ Deprecated legacy scripts (`setup_and_run.R`, `get_modis_latest.R`, `get_landsat
 ## Quick Start
 One‑time setup (from repository root):
 ```r
-Rscript greater_tunis_lcz_repo/scripts/setup.R
+Rscript scripts/setup.R
 ```
 
 Generate LCZ only:
 ```r
-Rscript greater_tunis_lcz_repo/scripts/run_lcz_only.R
+Rscript scripts/run_lcz_only.R
 ```
 
 LCZ + MODIS (needs credentials):
 ```powershell
 $env:EARTHDATA_USER = "your_username"
 $env:EARTHDATA_PASS = "your_password"
-Rscript greater_tunis_lcz_repo/scripts/run_lcz_modis.R
+Rscript scripts/run_lcz_modis.R
 ```
 
 LCZ + Landsat:
 ```r
-Rscript greater_tunis_lcz_repo/scripts/run_lcz_landsat.R
+Rscript scripts/run_lcz_landsat.R
 ```
 
-Outputs are written under `greater_tunis_lcz_repo/output/`:
+Outputs are written under `output/`:
 - `lcz_map_greater_tunis.tif`, `lcz_map_greater_tunis.png`, `greater_tunis_roi.gpkg`
 - Subfolders: `MODIS/` and `LANDSAT/` when respective downloads occur
 

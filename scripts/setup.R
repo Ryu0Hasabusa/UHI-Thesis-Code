@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # One-time setup: install required packages & (optionally) install LCZ4r.
 # Usage (PowerShell):
-#   Rscript greater_tunis_lcz_repo/scripts/setup.R
+#   Rscript scripts/setup.R
 # Optional env vars (override installs):
 #   LCZ4R_LOCAL_PATH  (path to local LCZ4r package directory)
 #   LCZ4R_GITHUB_REPO (e.g. ByMaxAnjos/LCZ4r)

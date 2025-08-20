@@ -26,19 +26,19 @@ jobs:
           sudo apt-get install -y gdal-bin libgdal-dev libproj-dev libgeos-dev libudunits2-dev
 
       - name: Run setup
-        run: Rscript greater_tunis_lcz_repo/scripts/setup.R
+        run: Rscript scripts/setup.R
 
       - name: Generate LCZ map (only)
-        run: Rscript greater_tunis_lcz_repo/scripts/run_lcz_only.R
+        run: Rscript scripts/run_lcz_only.R
 
       - name: Optionally run MODIS (if creds)
         if: env.EARTHDATA_USER != '' && env.EARTHDATA_PASS != ''
-        run: Rscript greater_tunis_lcz_repo/scripts/run_lcz_modis.R || true
+        run: Rscript scripts/run_lcz_modis.R || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: lcz-output
           path: |
-            greater_tunis_lcz_repo/output/**
+            output/**
           if-no-files-found: warn

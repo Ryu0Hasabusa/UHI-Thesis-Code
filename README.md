@@ -1,11 +1,12 @@
-# UHI-Thesis-Code
+# greater_tunis_lcz_repo
 
-[![LCZ Map Workflow](https://github.com/Ryu0Hasabusa/UHI-Thesis-Code/actions/workflows/lcz.yml/badge.svg)](https://github.com/Ryu0Hasabusa/UHI-Thesis-Code/actions/workflows/lcz.yml)
+<!-- Badge will need repo rename on GitHub; update owner/name below after renaming repository if desired -->
+[![LCZ Map Workflow](https://github.com/Ryu0Hasabusa/greater_tunis_lcz_repo/actions/workflows/lcz.yml/badge.svg)](https://github.com/Ryu0Hasabusa/greater_tunis_lcz_repo/actions/workflows/lcz.yml)
 
 Workflow for generating Local Climate Zone (LCZ) map and optional satellite datasets (MODIS LST, Landsat) for Greater Tunis.
 
 ## Structure
-Key directory: `greater_tunis_lcz_repo/scripts`
+Key directory: `scripts`
 
 Scripts:
 - `setup.R` – one-time install of required R packages and the `LCZ4r` package (local path or GitHub).
@@ -17,7 +18,7 @@ Scripts:
 
 Config file: `scripts/roi_config.json` (can override ROI behavior). Environment variables override JSON.
 
-Outputs go to `greater_tunis_lcz_repo/output/`:
+Outputs go to `output/`:
 - `lcz_map_greater_tunis.tif` – LCZ raster (byte palette)
 - `lcz_map_greater_tunis.png` – quicklook PNG
 - `greater_tunis_roi.gpkg` – ROI polygon
@@ -27,7 +28,7 @@ Outputs go to `greater_tunis_lcz_repo/output/`:
 From repository root (PowerShell on Windows):
 
 ```powershell
-Rscript greater_tunis_lcz_repo/scripts/setup.R
+Rscript scripts/setup.R
 ```
 
 Optional environment overrides before running setup:
@@ -40,7 +41,7 @@ Optional environment overrides before running setup:
 
 ### LCZ only
 ```powershell
-Rscript greater_tunis_lcz_repo/scripts/run_lcz_only.R
+Rscript scripts/run_lcz_only.R
 ```
 
 ### LCZ + MODIS LST
@@ -48,12 +49,12 @@ Requires NASA Earthdata login:
 ```powershell
 $env:EARTHDATA_USER = "your_username"
 $env:EARTHDATA_PASS = "your_password"
-Rscript greater_tunis_lcz_repo/scripts/run_lcz_modis.R
+Rscript scripts/run_lcz_modis.R
 ```
 
 ### LCZ + Landsat
 ```powershell
-Rscript greater_tunis_lcz_repo/scripts/run_lcz_landsat.R
+Rscript scripts/run_lcz_landsat.R
 ```
 Optional env vars:
 - `LANDSAT_START` (default 30 days ago)
@@ -73,7 +74,7 @@ The included workflow `/.github/workflows/lcz.yml` runs weekly (cron) and can be
 1. Sets up R and system libraries (GDAL, PROJ, GEOS, udunits).
 2. Runs `setup.R` then `run_lcz_only.R`.
 3. If `EARTHDATA_USER` / `EARTHDATA_PASS` secrets are defined, also runs `run_lcz_modis.R`.
-4. Uploads the `greater_tunis_lcz_repo/output/` directory as an artifact named `lcz-output`.
+4. Uploads the `output/` directory as an artifact named `lcz-output`.
 
 To enable MODIS in CI, add repository secrets:
 - `EARTHDATA_USER`
