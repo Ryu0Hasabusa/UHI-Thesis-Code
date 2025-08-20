@@ -13,8 +13,8 @@ Scripts:
 - `common.R` – shared helper functions (ROI build, LCZ map generation, MODIS & Landsat download functions).
 - `run_lcz_only.R` – build ROI + generate LCZ raster & preview PNG.
 - `run_lcz_modis.R` – LCZ + latest available MODIS MOD11A1 (Day/Night LST) within last ~7 days (needs EARTHDATA credentials).
-- `run_lcz_landsat.R` – LCZ + latest low-cloud Landsat Collection 2 Level-2 surface reflectance + thermal stack.
-	(Legacy combined/old helper scripts were removed in refactor 2025-08-19.)
+- `run_lcz_landsat.R` – LCZ + processing of a user-provided local Landsat stack (manual; automation removed 2025-08-20).
+	Provide a multi-band GeoTIFF via env var `LANDSAT_STACK` or place it under `input/LANDSAT/`.
 
 Config file: `scripts/roi_config.json` (can override ROI behavior). Environment variables override JSON.
 
@@ -52,15 +52,21 @@ $env:EARTHDATA_PASS = "your_password"
 Rscript scripts/run_lcz_modis.R
 ```
 
-### LCZ + Landsat
+### LCZ + Landsat (manual input)
+Prepare a multi-band Landsat GeoTIFF (e.g. containing SR_B2..SR_B7 and ST_B10 or precomputed ST_K/ST_C).
+
+Options to point the script at your file:
+1. Set an environment variable `LANDSAT_STACK` to the full path.
+2. Or place the file somewhere under `input/LANDSAT/` (the newest file or one containing 'landsat' in its name is chosen).
+
+Then run:
 ```powershell
 Rscript scripts/run_lcz_landsat.R
 ```
-Optional env vars:
-- `LANDSAT_START` (default 30 days ago)
-- `LANDSAT_END` (default today)
-- `LANDSAT_MAX_CLOUD` (default 10)
-- `LANDSAT_BANDS` (default SR_B2,SR_B3,SR_B4,SR_B5,SR_B6,SR_B7,ST_B10,QA_PIXEL)
+
+Output products go to `output/LANDSAT/`:
+- `landsat_LST_C.tif` (normalized Celsius surface temperature)
+- `landsat_LST_C.png` (quicklook)
 
 ## ROI customization
 `scripts/roi_config.json` keys:
@@ -80,12 +86,12 @@ To enable MODIS in CI, add repository secrets:
 - `EARTHDATA_USER`
 - `EARTHDATA_PASS`
 
-To add Landsat in CI, duplicate the MODIS step with `run_lcz_landsat.R` or extend the workflow.
+To add Landsat in CI you would first need to stage a stack file in the workflow (e.g. via artifact/download); the previous automated GEE retrieval was removed.
 
 ## Troubleshooting
 - Missing packages: rerun `setup.R`.
 - MODIS download fails: verify EARTHDATA credentials and wait a day if data not yet published.
-- Landsat no scenes: increase date range or cloud threshold (`LANDSAT_MAX_CLOUD`).
+- Landsat processing: ensure your supplied stack includes either ST_C, ST_K, or raw ST_B10; script auto-detects and scales to Celsius.
 
 ## License
 See individual component licenses; LCZ4r license in its own directory.

@@ -90,7 +90,7 @@ generate_lcz_map <- function(roi) {
   roi_file <- file.path("output", "greater_tunis_roi.gpkg")
   terra::writeRaster(lcz_byte, ras_file, datatype = "INT1U", overwrite = TRUE)
   try(sf::st_write(roi, roi_file, delete_dsn = TRUE, quiet = TRUE), silent = TRUE)
-  # Also export ROI as GeoJSON for use in GEE Python workflow
+  # Legacy: previously exported ROI GeoJSON for GEE automation (removed); keeping export optional if needed later
   try(sf::st_write(roi, file.path("output", "greater_tunis_roi.geojson"), delete_dsn = TRUE, quiet = TRUE), silent = TRUE)
   png_file <- file.path("output", "lcz_map_greater_tunis.png")
   png(png_file, width=1000, height=800)

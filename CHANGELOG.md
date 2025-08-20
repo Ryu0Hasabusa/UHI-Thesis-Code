@@ -13,5 +13,12 @@ Post-refactor adjustments (2025-08-20):
 - Removed obsolete `greater_tunis_lcz_repo/` path prefixes in docs & workflow.
 - Preparing for repository rename; update badges once rename finalized on GitHub.
 
+### 2025-08-20 (later)
+Landsat workflow simplification:
+- Removed automated Google Earth Engine Landsat downloader (`scripts/landsatGEE.py`).
+- `run_lcz_landsat.R` now expects a user-supplied local multi-band Landsat GeoTIFF (env var `LANDSAT_STACK` or file under `input/LANDSAT/`).
+- Output folder renamed from `output/LANDSAT_GEE/` to `output/LANDSAT/`.
+- README updated accordingly.
+
 ### Earlier
 Initial repository setup.

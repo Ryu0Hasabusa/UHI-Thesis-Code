@@ -1,16 +1,48 @@
 #!/usr/bin/env Rscript
-# Run: Generate LCZ map + latest Landsat (low-cloud) scene via Earth Engine helper
+# Run: Generate LCZ map + process a user-provided local Landsat stack (manual workflow)
+# The automated Google Earth Engine downloader was removed; user supplies data locally.
 source("scripts/common.R")
-message("== Run: LCZ + Landsat (GEE only) ==")
+message("== Run: LCZ + Landsat (manual local stack) ==")
 roi <- build_roi()
 generate_lcz_map(roi)
 
-# --- Execute Python EE workflow -------------------------------------------------
-gee_script <- "scripts/landsatGEE.py"
-gee_cmd <- sprintf("python %s", gee_script)  # could add args later e.g. --force
-message("Running GEE Landsat workflow via: ", gee_cmd)
-gee_status <- tryCatch(system(gee_cmd, intern = TRUE), error = function(e) paste("[ERROR]", e$message))
-cat(gee_status, sep = "\n")
+# --- Locate user-provided Landsat stack -----------------------------------------
+# Priority order:
+# 1. Environment variable LANDSAT_STACK (full path to a GeoTIFF)
+# 2. First .tif in input/LANDSAT (recursively) whose name matches 'landsat' (case-insensitive)
+# 3. Any .tif in input/LANDSAT (if only one)
+landsat_stack <- Sys.getenv("LANDSAT_STACK", unset = "")
+if (nzchar(landsat_stack) && !file.exists(landsat_stack)) {
+	stop("LANDSAT_STACK specified but file does not exist: ", landsat_stack)
+}
+if (!nzchar(landsat_stack)) {
+	search_dir <- "input/LANDSAT"
+	if (dir.exists(search_dir)) {
+		files <- list.files(search_dir, pattern = "\\.tif$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE)
+		if (length(files)) {
+			cand <- grep("landsat", basename(files), ignore.case = TRUE, value = TRUE)
+			if (length(cand)) {
+				# pick the most recently modified matching candidate
+				idx <- which(basename(files) %in% cand)
+				fsel <- files[idx][which.max(file.info(files[idx])$mtime)]
+				landsat_stack <- fsel
+			} else if (length(files) == 1) {
+				landsat_stack <- files[1]
+			} else {
+				# choose newest file if multiple
+				landsat_stack <- files[which.max(file.info(files)$mtime)]
+			}
+		}
+	}
+}
+if (!nzchar(landsat_stack)) {
+	stop("No Landsat stack found. Provide path via LANDSAT_STACK env var or place a GeoTIFF under input/LANDSAT/.")
+}
+message("Using Landsat stack: ", landsat_stack)
+
+# Output directory (renamed from LANDSAT_GEE to LANDSAT)
+landsat_dir <- "output/LANDSAT"
+dir.create(landsat_dir, recursive = TRUE, showWarnings = FALSE)
 
 # --- Helper: detect & normalize LST band to degrees Celsius ---------------------
 normalize_lst <- function(r) {
@@ -54,39 +86,9 @@ normalize_lst <- function(r) {
 	}
 	return(NULL)
 }
-
-message("Processing GEE Landsat outputs ...")
+message("Loading Landsat raster stack ...")
 library(terra)
-gee_dir <- "output/LANDSAT_GEE"
-# Try to read metadata JSON if present to guide scaling decisions
-meta_path <- file.path(gee_dir, "landsat_metadata.json")
-meta <- NULL
-if (file.exists(meta_path)) {
-	meta <- tryCatch(jsonlite::fromJSON(meta_path), error = function(e) NULL)
-	if (!is.null(meta)) {
-		message(sprintf("Metadata: acquisition UTC=%s cloud=%.1f st_c_mean=%s inferred_scale=%s",
-										meta$acquisition_utc, as.numeric(meta$cloud_cover), as.character(meta$st_c_mean), meta$st_c_scale_inferred))
-	}
-}
-gee_files <- list.files(gee_dir, pattern = "\\.tif$", full.names = TRUE)
-if (!length(gee_files)) {
-	message("No GEE output .tif files found in output/LANDSAT_GEE.")
-	quit(save = "no", status = 0)
-}
-# Prefer an original multi-band stack (name contains 'landsat_stack') over derived products like landsat_LST_C.tif
-stack_idx <- grep("landsat_stack", basename(gee_files))
-if (length(stack_idx)) {
-	candidate_files <- gee_files[stack_idx]
-	gee_file <- candidate_files[which.max(file.info(candidate_files)$mtime)]
-} else {
-	# fallback: choose file with largest number of bands
-	band_counts <- vapply(gee_files, function(f) {
-		tryCatch(nlyr(rast(f)), error = function(e) -1)
-	}, numeric(1))
-	gee_file <- gee_files[which.max(band_counts)]
-}
-message("Using stack candidate: ", basename(gee_file))
-r <- rast(gee_file)
+r <- tryCatch(rast(landsat_stack), error = function(e) stop("Failed to read Landsat stack: ", e$message))
 
 # --- Plot Surface Reflectance (simple RGB) -------------------------------------
 sr_bands <- grep("SR_B[2-4]", names(r), value = TRUE)
@@ -104,25 +106,20 @@ if (is.null(lst_info)) {
 } else {
 	lst <- lst_info$band
 	names(lst) <- "LST_C"
-	# If metadata suggests ST_C was 0-1 scaled but our heuristic chose another path, enforce scaling
-	if (!is.null(meta) && identical(lst_info$method, "none") && grepl("0-1", meta$st_c_scale_inferred %||% "")) {
-		message("Meta indicates ST_C scaled 0-1; applying *100 post hoc.")
-		lst <- lst * 100
-	}
 	stats <- as.numeric(global(lst, quantile, probs = c(0,0.05,0.5,0.95,1), na.rm = TRUE))
 	message(sprintf("LST source=%s method=%s range=%.2f..%.2f (°C)", lst_info$source, lst_info$method, stats[1], stats[5]))
 	plot(lst, main = "Surface Temperature (°C)")
 	# Save normalized LST raster & quick PNG
-		out_rst <- file.path(gee_dir, "landsat_LST_C.tif")
-		# Avoid attempting to overwrite if the source file already IS the target (happens on reruns)
-		if (normalizePath(gee_file, winslash = "/", mustWork = FALSE) == normalizePath(out_rst, winslash = "/", mustWork = FALSE)) {
-			out_rst <- file.path(gee_dir, "landsat_LST_C_norm.tif")
-		}
-		try(writeRaster(lst, out_rst, overwrite = TRUE), silent = TRUE)
-	png(file.path(gee_dir, "landsat_LST_C.png"), width = 1200, height = 1600, res = 150)
+	out_rst <- file.path(landsat_dir, "landsat_LST_C.tif")
+	# Avoid overwriting the original file if user already named it similarly
+	if (normalizePath(landsat_stack, winslash = "/", mustWork = FALSE) == normalizePath(out_rst, winslash = "/", mustWork = FALSE)) {
+		out_rst <- file.path(landsat_dir, "landsat_LST_C_norm.tif")
+	}
+	try(writeRaster(lst, out_rst, overwrite = TRUE), silent = TRUE)
+	png(file.path(landsat_dir, "landsat_LST_C.png"), width = 1200, height = 1600, res = 150)
 	plot(lst, main = "Surface Temperature (°C)")
 	dev.off()
-	message("Wrote normalized LST raster & PNG to ", gee_dir)
+	message("Wrote normalized LST raster & PNG to ", landsat_dir)
 }
 
 message("Done.")
