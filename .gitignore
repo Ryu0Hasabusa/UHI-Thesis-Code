@@ -1,0 +1,11 @@
+# Ignore user/environment specific secrets
+.Renviron
+.Rprofile
+
+# R session data
+.Rhistory
+.RData
+.Rproj.user/
+
+# Output artifacts
+output/

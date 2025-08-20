@@ -1,0 +1,19 @@
+# Copy this file to ~/.Renviron and fill in real values (never commit real secrets)
+USGS_USER=your_earthexplorer_username
+USGS_PASS=your_earthexplorer_password
+EARTHDATA_USER=your_earthdata_username
+EARTHDATA_PASS=your_earthdata_password
+# Optional AWS credentials (only if using requester-pays S3):
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-west-2
+# Optional Planetary Computer SAS token (leave blank if unused):
+PC_SAS_TOKEN=
+# Optional overrides:
+LANDSAT_MAX_CLOUD=10
+LANDSAT_START=
+LANDSAT_END=
+LANDSAT_M2M_MAX_CLOUD=15
+LANDSAT_M2M_START=
+LANDSAT_M2M_END=
+LANDSAT_DOWNLOAD_METHOD=auto
