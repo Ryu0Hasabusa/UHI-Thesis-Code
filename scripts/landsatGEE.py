@@ -226,6 +226,63 @@ def main():
     except Exception as e:
         print(f"[DEBUG] Exception during single_file_download wrapper: {e}")
 
+    # ---------------- Metadata export (acquisition time & ST_C stats) -----------------
+    try:
+        from pathlib import Path
+        import json as _json
+        out_dir = Path(CONFIG['OUT_DIR'])
+        out_dir.mkdir(parents=True, exist_ok=True)
+        # Acquisition times
+        acq_utc = img.date().format('YYYY-MM-dd HH:mm').getInfo()
+        scene_center_time = img.get('SCENE_CENTER_TIME').getInfo() if img.get('SCENE_CENTER_TIME') else None
+        cloud_cover = img.get('CLOUD_COVER').getInfo() if img.get('CLOUD_COVER') else None
+        # ST_C statistics (min, max, mean) using same mask
+        try:
+            stat_dict = img.select(['ST_C']).reduceRegion(
+                reducer=ee.Reducer.minMax().combine(reducer2=ee.Reducer.mean(), sharedInputs=True),
+                geometry=AOI,
+                scale=CONFIG['SCALE'],
+                maxPixels=1e13,
+                tileScale=2
+            )
+            st_c_min = stat_dict.get('ST_C_min').getInfo()
+            st_c_max = stat_dict.get('ST_C_max').getInfo()
+            st_c_mean = stat_dict.get('ST_C_mean').getInfo()
+        except Exception as se:
+            print(f"[DEBUG] ST_C stats failed: {se}")
+            st_c_min = st_c_max = st_c_mean = None
+        # Determine latest downloaded stack file (if any)
+        latest_stack = None
+        try:
+            tifs = list(out_dir.glob('*.tif'))
+            if tifs:
+                latest_stack = max(tifs, key=lambda p: p.stat().st_mtime).name
+        except Exception:
+            pass
+        meta = {
+            'acquisition_utc': acq_utc,
+            'scene_center_time': scene_center_time,
+            'cloud_cover': cloud_cover,
+            'st_c_min': st_c_min,
+            'st_c_max': st_c_max,
+            'st_c_mean': st_c_mean,
+            'stack_file': latest_stack,
+            'area_km2': None,
+            'bands_requested': CONFIG.get('SINGLE_FILE_BANDS')
+        }
+        # Include area if earlier computed
+        try:
+            meta['area_km2'] = AOI.area().getInfo()/1e6
+        except Exception:
+            pass
+        meta_path = out_dir / 'landsat_metadata.json'
+        with open(meta_path, 'w', encoding='utf-8') as f:
+            _json.dump(meta, f, indent=2)
+        print(f"[DEBUG] Wrote metadata JSON: {meta_path}")
+        print(f"[DEBUG] Acquisition UTC={acq_utc} ST_C mean={st_c_mean}")
+    except Exception as me:
+        print(f"[DEBUG] Metadata export failed: {me}")
+
 import requests
 import zipfile
 from pathlib import Path
