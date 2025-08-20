@@ -7,10 +7,8 @@ roi <- build_roi()
 generate_lcz_map(roi)
 
 # --- Locate user-provided Landsat stack -----------------------------------------
-# Priority order:
-# 1. Environment variable LANDSAT_STACK (full path to a GeoTIFF)
-# 2. First .tif in input/LANDSAT (recursively) whose name matches 'landsat' (case-insensitive)
-# 3. Any .tif in input/LANDSAT (if only one)
+
+# --- Auto-stack bands from landsat/ if no stack is found ---
 landsat_stack <- Sys.getenv("LANDSAT_STACK", unset = "")
 if (nzchar(landsat_stack) && !file.exists(landsat_stack)) {
 	stop("LANDSAT_STACK specified but file does not exist: ", landsat_stack)
@@ -18,25 +16,53 @@ if (nzchar(landsat_stack) && !file.exists(landsat_stack)) {
 if (!nzchar(landsat_stack)) {
 	search_dir <- "input/LANDSAT"
 	if (dir.exists(search_dir)) {
-		files <- list.files(search_dir, pattern = "\\.tif$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE)
+		files <- list.files(search_dir, pattern = "[.]tif$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE)
 		if (length(files)) {
 			cand <- grep("landsat", basename(files), ignore.case = TRUE, value = TRUE)
 			if (length(cand)) {
-				# pick the most recently modified matching candidate
 				idx <- which(basename(files) %in% cand)
 				fsel <- files[idx][which.max(file.info(files[idx])$mtime)]
 				landsat_stack <- fsel
 			} else if (length(files) == 1) {
 				landsat_stack <- files[1]
 			} else {
-				# choose newest file if multiple
 				landsat_stack <- files[which.max(file.info(files)$mtime)]
 			}
 		}
 	}
 }
+
+# If still no stack, try to build one from landsat/ quadrants
 if (!nzchar(landsat_stack)) {
-	stop("No Landsat stack found. Provide path via LANDSAT_STACK env var or place a GeoTIFF under input/LANDSAT/.")
+	quad_dir <- "landsat"
+	out_dir <- "input/LANDSAT"
+	out_file <- file.path(out_dir, "landsat_stack.tif")
+	bands_to_stack <- c("SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7", "ST_B10")
+	quads <- list.dirs(quad_dir, recursive = FALSE, full.names = TRUE)
+	all_band_files <- list()
+	for (q in quads) {
+		for (b in bands_to_stack) {
+			f <- list.files(q, pattern = paste0(b, "[.]TIF$"), full.names = TRUE, ignore.case = TRUE)
+			if (length(f)) {
+				all_band_files[[paste(b, basename(q), sep = "_")]] <- f[1]
+			} else {
+				warning(sprintf("Missing %s in %s", b, basename(q)))
+			}
+		}
+	}
+	if (length(all_band_files)) {
+		library(terra)
+		rasters <- lapply(all_band_files, function(f) rast(f))
+		stack <- rast(rasters)
+		if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+		writeRaster(stack, out_file, overwrite = TRUE)
+		landsat_stack <- out_file
+		message("Stacked ", length(rasters), " bands to ", out_file)
+		message("Bands in stack: ", paste(names(stack), collapse=", "))
+	}
+}
+if (!nzchar(landsat_stack) || !file.exists(landsat_stack)) {
+	stop("No Landsat stack found or could be built. Provide path via LANDSAT_STACK env var, place a GeoTIFF under input/LANDSAT/, or ensure landsat/ contains valid quadrants.")
 }
 message("Using Landsat stack: ", landsat_stack)
 
