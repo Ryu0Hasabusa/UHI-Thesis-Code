@@ -63,10 +63,19 @@ if (!length(gee_files)) {
 	message("No GEE output .tif files found in output/LANDSAT_GEE.")
 	quit(save = "no", status = 0)
 }
-
-# Pick newest file (single multi-band stack naming pattern from Python helper)
-gee_file <- gee_files[which.max(file.info(gee_files)$mtime)]
-message("Using latest stack: ", basename(gee_file))
+# Prefer an original multi-band stack (name contains 'landsat_stack') over derived products like landsat_LST_C.tif
+stack_idx <- grep("landsat_stack", basename(gee_files))
+if (length(stack_idx)) {
+	candidate_files <- gee_files[stack_idx]
+	gee_file <- candidate_files[which.max(file.info(candidate_files)$mtime)]
+} else {
+	# fallback: choose file with largest number of bands
+	band_counts <- vapply(gee_files, function(f) {
+		tryCatch(nlyr(rast(f)), error = function(e) -1)
+	}, numeric(1))
+	gee_file <- gee_files[which.max(band_counts)]
+}
+message("Using stack candidate: ", basename(gee_file))
 r <- rast(gee_file)
 
 # --- Plot Surface Reflectance (simple RGB) -------------------------------------
@@ -89,8 +98,12 @@ if (is.null(lst_info)) {
 	message(sprintf("LST source=%s method=%s range=%.2f..%.2f (°C)", lst_info$source, lst_info$method, stats[1], stats[5]))
 	plot(lst, main = "Surface Temperature (°C)")
 	# Save normalized LST raster & quick PNG
-	out_rst <- file.path(gee_dir, "landsat_LST_C.tif")
-	writeRaster(lst, out_rst, overwrite = TRUE)
+		out_rst <- file.path(gee_dir, "landsat_LST_C.tif")
+		# Avoid attempting to overwrite if the source file already IS the target (happens on reruns)
+		if (normalizePath(gee_file, winslash = "/", mustWork = FALSE) == normalizePath(out_rst, winslash = "/", mustWork = FALSE)) {
+			out_rst <- file.path(gee_dir, "landsat_LST_C_norm.tif")
+		}
+		try(writeRaster(lst, out_rst, overwrite = TRUE), silent = TRUE)
 	png(file.path(gee_dir, "landsat_LST_C.png"), width = 1200, height = 1600, res = 150)
 	plot(lst, main = "Surface Temperature (°C)")
 	dev.off()
