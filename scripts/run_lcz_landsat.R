@@ -73,7 +73,7 @@ normalize_lst <- function(r) {
 		rng <- as.numeric(global(b_dn, range, na.rm = TRUE))
 		# Heuristic: if max > 1000 treat as DN (uint16); otherwise maybe already scaled
 		if (!any(is.na(rng)) && rng[2] > 1000) {
-			# Scale to Kelvin using factors in landsatGEE.py (0.00341802 * DN + 149.0) then to C
+			# Scale raw DN to Kelvin (0.00341802 * DN + 149.0) then convert to Celsius
 			b <- b_dn * 0.00341802 + 149.0 - 273.15
 			return(list(band = b, source = raw[1], method = "DN_scaled_to_C"))
 		} else {
