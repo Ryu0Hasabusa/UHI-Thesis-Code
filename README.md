@@ -5,7 +5,6 @@ This repository contains only the essential scripts for generating Local Climate
 ## Structure
 - **scripts/**: All code for ROI setup, LCZ mapping, Landsat processing, and urban metrics
 - **scripts/common.R**: Centralized config and helper functions
-- **scripts/run_lcz_only.R**: Generates LCZ raster and ROI
 - **scripts/run_lcz_landsat.R**: Processes user-supplied Landsat stack (manual input only)
 - **scripts/[metric]_map.R**: Aspect ratio, SVF, albedo, NDVI, NDBI, NDWI, and other metrics (auto-generates LCZ raster if missing)
 - **scripts/roi_config.json**: ROI and config overrides
@@ -15,26 +14,20 @@ This repository contains only the essential scripts for generating Local Climate
    ```powershell
    Rscript scripts/setup.R
    ```
-2. Generate LCZ map:
-   ```powershell
-   Rscript scripts/run_lcz_only.R
-   ```
-3. Process Landsat stack (place file in `input/LANDSAT/` or set `LANDSAT_STACK` env var):
+2. Process Landsat stack:
+   - Place your Landsat files inside the `Landsat/` folder.
+   - Run:
    ```powershell
    Rscript scripts/run_lcz_landsat.R
    ```
-4. Run metric scripts as needed:
+3. Run metric scripts as needed:
    ```powershell
    Rscript scripts/aspect_ratio_map.R
    Rscript scripts/sky_view_factor_map.R
    # ...other metric scripts
    ```
 
-## Notes
-- Only the `scripts` folder is synced to GitHub; input/output data is ignored
-- MODIS workflow and all automation have been removed
-- For ROI customization, edit `scripts/roi_config.json` or set env vars
-- All code is designed for manual, robust processing with error handling for ROI/CRS issues
+When you run the scripts, the `input/` and `output/` folders will be created automatically if they do not exist.
 
 ## License
 See `LCZ4r/LICENSE` for LCZ4r package license. All other scripts are MIT unless otherwise stated.
