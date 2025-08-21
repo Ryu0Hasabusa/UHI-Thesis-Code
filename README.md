@@ -2,6 +2,9 @@
 
 This repository contains only the essential scripts for generating Local Climate Zone (LCZ) maps and processing Landsat data for Greater Tunis.
 
+## Requirements
+- Install the R language: [Download R from CRAN](https://cran.r-project.org/)
+
 ## Structure
 - **scripts/**: All code for ROI setup, LCZ mapping, Landsat processing, and urban metrics
 - **scripts/common.R**: Centralized config and helper functions
