@@ -1,6 +1,6 @@
 # UHI-Thesis-Code
 
-This repository contains only the essential scripts for generating Local Climate Zone (LCZ) maps and processing Landsat data for Greater Tunis. All obsolete files, MODIS workflows, and extra documentation have been removed as of August 2025.
+This repository contains only the essential scripts for generating Local Climate Zone (LCZ) maps and processing Landsat data for Greater Tunis.
 
 ## Structure
 - **scripts/**: All code for ROI setup, LCZ mapping, Landsat processing, and urban metrics
