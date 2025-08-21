@@ -8,7 +8,8 @@ generate_lcz_map(roi)
 
 # --- Locate user-provided Landsat stack -----------------------------------------
 
-# --- Auto-stack bands from landsat/ if no stack is found ---
+
+# --- Mosaic bands from all tiles, then stack ---
 landsat_stack <- Sys.getenv("LANDSAT_STACK", unset = "")
 if (nzchar(landsat_stack) && !file.exists(landsat_stack)) {
 	stop("LANDSAT_STACK specified but file does not exist: ", landsat_stack)
@@ -32,32 +33,33 @@ if (!nzchar(landsat_stack)) {
 	}
 }
 
-# If still no stack, try to build one from landsat/ quadrants
+# If still no stack, mosaic each band across all tiles, then stack
 if (!nzchar(landsat_stack)) {
 	quad_dir <- "landsat"
 	out_dir <- "input/LANDSAT"
 	out_file <- file.path(out_dir, "landsat_stack.tif")
 	bands_to_stack <- c("SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7", "ST_B10")
 	quads <- list.dirs(quad_dir, recursive = FALSE, full.names = TRUE)
-	all_band_files <- list()
-	for (q in quads) {
-		for (b in bands_to_stack) {
-			f <- list.files(q, pattern = paste0(b, "[.]TIF$"), full.names = TRUE, ignore.case = TRUE)
-			if (length(f)) {
-				all_band_files[[paste(b, basename(q), sep = "_")]] <- f[1]
-			} else {
-				warning(sprintf("Missing %s in %s", b, basename(q)))
-			}
+	mosaics <- list()
+	library(terra)
+	for (b in bands_to_stack) {
+		band_files <- unlist(lapply(quads, function(q) list.files(q, pattern = paste0(b, "[.]TIF$"), full.names = TRUE, ignore.case = TRUE)))
+		if (length(band_files)) {
+			rasters <- lapply(band_files, function(f) rast(f))
+			# Mosaic all rasters for this band
+			m <- do.call(mosaic, c(rasters, list(fun = "mean")))
+			mosaics[[b]] <- m
+			message(sprintf("Mosaicked %s from %d tiles", b, length(rasters)))
+		} else {
+			warning(sprintf("No files found for band %s", b))
 		}
 	}
-	if (length(all_band_files)) {
-		library(terra)
-		rasters <- lapply(all_band_files, function(f) rast(f))
-		stack <- rast(rasters)
+	if (length(mosaics)) {
+		stack <- rast(mosaics)
 		if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 		writeRaster(stack, out_file, overwrite = TRUE)
 		landsat_stack <- out_file
-		message("Stacked ", length(rasters), " bands to ", out_file)
+		message("Stacked mosaicked bands to ", out_file)
 		message("Bands in stack: ", paste(names(stack), collapse=", "))
 	}
 }
@@ -115,12 +117,30 @@ normalize_lst <- function(r) {
 message("Loading Landsat raster stack ...")
 library(terra)
 r <- tryCatch(rast(landsat_stack), error = function(e) stop("Failed to read Landsat stack: ", e$message))
+# Crop to ROI (reproject ROI to match stack CRS)
+roi_vect <- vect(roi)
+if (!identical(crs(r), crs(roi_vect))) {
+	roi_vect <- project(roi_vect, crs(r))
+}
+# Pad (extend) raster if its extent is smaller than ROI in any direction, then mask to ROI shape
+e_r <- ext(r); e_roi <- ext(roi_vect)
+need_pad <- (e_r$xmin > e_roi$xmin) || (e_r$xmax < e_roi$xmax) || (e_r$ymin > e_roi$ymin) || (e_r$ymax < e_roi$ymax)
+if (need_pad) {
+	message("Raster extent smaller than ROI on at least one side -> extending before masking.")
+	r <- extend(r, e_roi)
+}
+# Mask (keeps full ROI polygon shape, sets outside to NA) rather than simple crop
+r <- mask(r, roi_vect)
+# After masking, crop to ROI bounding box to remove large empty margins from larger mosaic
+r <- crop(r, roi_vect)
 
 # --- Plot Surface Reflectance (simple RGB) -------------------------------------
-sr_bands <- grep("SR_B[2-4]", names(r), value = TRUE)
-if (length(sr_bands) == 3) {
-	message("Plotting RGB using ", paste(sr_bands, collapse=","))
-	plot(r[[sr_bands]], rgb = TRUE, main = "Surface Reflectance (RGB)")
+sr_b2 <- grep("SR_B2", names(r), value = TRUE)
+sr_b3 <- grep("SR_B3", names(r), value = TRUE)
+sr_b4 <- grep("SR_B4", names(r), value = TRUE)
+if (length(sr_b2) && length(sr_b3) && length(sr_b4)) {
+	message("Plotting RGB (R=SR_B4, G=SR_B3, B=SR_B2)")
+	plotRGB(r, r = which(names(r) == sr_b4[1]), g = which(names(r) == sr_b3[1]), b = which(names(r) == sr_b2[1]), stretch = "lin", main = "Surface Reflectance (RGB)")
 } else {
 	plot(r[[1]], main = "Surface Reflectance (Single Band)")
 }
