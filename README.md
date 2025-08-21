@@ -8,6 +8,7 @@ This repository contains only the essential scripts for generating Local Climate
 - **scripts/run_lcz_landsat.R**: Processes user-supplied Landsat stack (manual input only)
 - **scripts/[metric]_map.R**: Aspect ratio, SVF, albedo, NDVI, NDBI, NDWI, and other metrics (auto-generates LCZ raster if missing)
 - **scripts/roi_config.json**: ROI and config overrides
+- **Landsat/**: Place your Landsat files here. Each subfolder should be named with the path and row number (e.g., `191034` for path 191, row 034).
 
 ## Usage
 1. Install R dependencies:
@@ -16,6 +17,7 @@ This repository contains only the essential scripts for generating Local Climate
    ```
 2. Process Landsat stack:
    - Place your Landsat files inside the `Landsat/` folder.
+   - Each Landsat subfolder should be named with the path and row number (e.g., `191034` for path 191, row 034).
    - Run:
    ```powershell
    Rscript scripts/run_lcz_landsat.R
