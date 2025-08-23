@@ -55,6 +55,3 @@ Rscript scripts/surface_emissivity_map.R
 ## License
 See `LCZ4r/LICENSE` for the LCZ4r package license. Other repository scripts are MIT unless otherwise stated.
 
-If you want, I can also:
-- add a short Troubleshooting section (common errors and fixes), or
-- make the README more compact and add a `docs/` walkthrough.
