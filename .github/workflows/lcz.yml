@@ -9,8 +9,6 @@ jobs:
   build-lcz:
     runs-on: ubuntu-latest
     env:
-      EARTHDATA_USER: ${{ secrets.EARTHDATA_USER }}
-      EARTHDATA_PASS: ${{ secrets.EARTHDATA_PASS }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
