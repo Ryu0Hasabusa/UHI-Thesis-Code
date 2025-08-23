@@ -1,3 +1,4 @@
+source("scripts/common.R")
 # Heat Capacity/Surface Admittance Map from LCZ using lcz_get_parameters()
 library(terra)
 library(LCZ4r)
@@ -9,8 +10,9 @@ if (!file.exists(lcz_file)) {
 } else {
   lcz <- rast(lcz_file)
 }
-params <- lcz_get_parameters()
-class_hc <- setNames(params$SADmean, params$class)
-hc_map <- classify(lcz, class_hc)
-writeRaster(hc_map, 'output/heat_capacity_map.tif', overwrite=TRUE)
-png('output/heat_capacity_map.png'); plot(hc_map, main='Heat Capacity/Surface Admittance (LCZ)'); dev.off()
+params <- lcz_get_parameters(lcz)
+hc_mean <- params[["SADmean"]]
+if (!dir.exists("output/heat_capacity")) dir.create("output/heat_capacity", recursive = TRUE)
+writeRaster(hc_mean, "output/heat_capacity/heat_capacity_mean_map.tif", overwrite=TRUE)
+plot(hc_mean, main="Heat Capacity/Surface Admittance (Mean, LCZ)")
+png(file.path("output","heat_capacity","heat_capacity_mean_map.png")); plot(hc_mean, main="Heat Capacity/Surface Admittance (Mean, LCZ)"); dev.off()

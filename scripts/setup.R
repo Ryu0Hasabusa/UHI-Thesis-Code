@@ -10,11 +10,14 @@
 
 message("== One-time setup ==")
 
-required <- c("remotes","terra","sf","osmdata","jsonlite","MODIStsp","rstac")
+# Ensure a non-interactive CRAN mirror is set (prevents install.packages prompting)
+options(repos = c(CRAN = Sys.getenv('CRAN_REPO', unset = 'https://cran.rstudio.com')))
+
+required <- c("remotes","terra","sf","osmdata","jsonlite","rstac","elevatr")
 missing <- setdiff(required, rownames(installed.packages()))
 if (length(missing)) {
   message("Installing CRAN packages: ", paste(missing, collapse=", "))
-  install.packages(missing)
+  install.packages(missing, repos = getOption('repos'))
 } else {
   message("All CRAN deps already present.")
 }

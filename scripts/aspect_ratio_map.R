@@ -1,3 +1,4 @@
+source("scripts/common.R")
 # Aspect Ratio Map from LCZ using lcz_get_parameters()
 library(terra)
 library(LCZ4r)
@@ -9,8 +10,10 @@ if (!file.exists(lcz_file)) {
 } else {
   lcz <- rast(lcz_file)
 }
-params <- lcz_get_parameters()
-class_ar <- setNames(params$ar, params$class)
-aspect_map <- classify(lcz, class_ar)
-writeRaster(aspect_map, 'output/aspect_ratio_map.tif', overwrite=TRUE)
-png('output/aspect_ratio_map.png'); plot(aspect_map, main='Aspect Ratio (LCZ)'); dev.off()
+params <- lcz_get_parameters(lcz)
+# Extract and save aspect ratio rasters
+ar_mean <- params[["ARmean"]]
+if (!dir.exists("output/aspect_ratio")) dir.create("output/aspect_ratio", recursive = TRUE)
+writeRaster(ar_mean, "output/aspect_ratio/aspect_ratio_mean_map.tif", overwrite=TRUE)
+plot(ar_mean, main="Aspect Ratio (Mean, LCZ)") 
+png(file.path("output", "aspect_ratio", "aspect_ratio_mean_map.png")); plot(ar_mean, main="Aspect Ratio (Mean, LCZ)"); dev.off()

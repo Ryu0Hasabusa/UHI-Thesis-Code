@@ -1,3 +1,4 @@
+source("scripts/common.R")
 # Sky View Factor Map from LCZ using lcz_get_parameters()
 library(terra)
 library(LCZ4r)
@@ -9,8 +10,9 @@ if (!file.exists(lcz_file)) {
 } else {
   lcz <- rast(lcz_file)
 }
-params <- lcz_get_parameters()
-class_svf <- setNames(params$SVFmean, params$class)
-svf_map <- classify(lcz, class_svf)
-writeRaster(svf_map, 'output/sky_view_factor_map.tif', overwrite=TRUE)
-png('output/sky_view_factor_map.png'); plot(svf_map, main='Sky View Factor (LCZ)'); dev.off()
+params <- lcz_get_parameters(lcz)
+svf_mean <- params[["SVFmean"]]
+if (!dir.exists("output/sky_view_factor")) dir.create("output/sky_view_factor", recursive = TRUE)
+writeRaster(svf_mean, "output/sky_view_factor/sky_view_factor_mean_map.tif", overwrite=TRUE)
+plot(svf_mean, main="Sky View Factor (Mean, LCZ)")
+png(file.path("output", "sky_view_factor", "sky_view_factor_mean_map.png")); plot(svf_mean, main="Sky View Factor (Mean, LCZ)"); dev.off()

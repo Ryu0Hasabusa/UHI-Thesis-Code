@@ -101,3 +101,65 @@ generate_lcz_map <- function(roi) {
   invisible(list(raster = ras_file, roi = roi_file, png = png_file))
 }
 
+## Helper: return a Landsat stack SpatRaster.
+## Priority: if file input/LANDSAT/landsat_stack.tif exists, use it.
+## Otherwise, if preprocessed per-scene stacks exist in input/LANDSAT/scenes/, build a median composite per band.
+get_landsat_stack <- function(write_if_missing = TRUE) {
+  stack_file <- file.path('input','LANDSAT','landsat_stack.tif')
+  if (file.exists(stack_file)) return(rast(stack_file))
+
+  scene_dir <- file.path('input','LANDSAT','scenes')
+  if (!dir.exists(scene_dir)) return(NULL)
+  scene_files <- list.files(scene_dir, pattern = '_preproc\\.tif$', full.names = TRUE)
+  if (length(scene_files) == 0) return(NULL)
+
+  # expected band names
+  band_names <- c('SR_B2','SR_B4','SR_B5','SR_B6','SR_B7','QA_PIXEL')
+
+  # reference grid = first valid scene
+  ref <- rast(scene_files[[1]])
+
+  # collect per-band layers across scenes
+  scenes_by_band <- lapply(band_names, function(x) list())
+  names(scenes_by_band) <- band_names
+
+  for (sf in scene_files) {
+    r <- try(rast(sf), silent = TRUE)
+    if (inherits(r, 'try-error')) next
+    if (!all(band_names %in% names(r))) next
+    # align CRS and resolution to reference
+    if (!compareGeom(ref, r, stopOnError = FALSE, crs = TRUE, ext = FALSE, rowcol = FALSE)) r <- project(r, crs(ref))
+    if (!compareGeom(ref, r, stopOnError = FALSE, rowcol = TRUE, crs = FALSE)) r <- resample(r, ref, method = 'bilinear')
+    for (bn in band_names) {
+      scenes_by_band[[bn]] <- c(scenes_by_band[[bn]], list(r[[bn]]))
+    }
+  }
+
+  # if no valid scenes collected, abort
+  if (all(sapply(scenes_by_band, length) == 0)) return(NULL)
+
+  # compute median for SR bands (first five); for QA produce NA layer
+  median_bands <- list()
+  for (bn in band_names[1:5]) {
+    layers <- scenes_by_band[[bn]]
+    if (length(layers) == 0) {
+      median_bands[[bn]] <- ref[[1]]*NA
+    } else {
+      multi <- do.call(c, layers)
+      median_bands[[bn]] <- app(multi, fun = function(v) median(v, na.rm = TRUE))
+    }
+  }
+  median_stack <- rast(median_bands)
+  names(median_stack) <- band_names[1:5]
+
+  qa_blank <- median_stack[[1]] * NA
+  names(qa_blank) <- 'QA_PIXEL'
+  full_stack <- c(median_stack, qa_blank)
+
+  if (write_if_missing) {
+    dir.create(dirname(stack_file), recursive = TRUE, showWarnings = FALSE)
+    writeRaster(full_stack, stack_file, overwrite = TRUE)
+  }
+  full_stack
+}
+
