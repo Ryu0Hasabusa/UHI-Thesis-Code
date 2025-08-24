@@ -73,9 +73,38 @@ Scripts (detailed)
 
 - LCZ-derived metric scripts
   - `scripts/sky_view_factor_map.R`, `scripts/heat_capacity_map.R`, `scripts/anthropogenic_heat_map.R`, `scripts/aspect_ratio_map.R`:
-    - Purpose: compute LCZ-derived parameters using `LCZ4r::lcz_get_parameters()` applied to `output/lcz_map_greater_tunis.tif`.
-    - Inputs: `output/lcz_map_greater_tunis.tif` (created by `generate_lcz_map()` from `scripts/common.R` or previously-run LCZ steps).
-    - Outputs: per-metric TIFFs under `output/<metric_name>/` with PNG previews.
+    - Purpose: compute LCZ-derived parameters using `LCZ4r::lcz_get_parameters()` applied to `output/lcz_map_greater_tunis.tif` (the LCZ raster). Each script extracts one or more band-like rasters representing a physical or structural metric derived from LCZ classes.
+    - Inputs: `output/lcz_map_greater_tunis.tif` (created by `generate_lcz_map()` in `scripts/common.R` or produced previously). The LCZ raster must use the LCZ4r class scheme expected by `lcz_get_parameters()`.
+    - Outputs: per-metric TIFF(s) under `output/<metric_name>/` plus small PNG previews. Files are typically written as GeoTIFFs with the same CRS as the LCZ raster.
+    - Per-metric details:
+      - `sky_view_factor_map.R` (SVFmean)
+        - What: mean Sky View Factor per-pixel estimated from LCZ parameters. SVF is a unitless fraction [0,1] describing how much sky is visible from a point; lower values indicate more occlusion by buildings/vegetation (urban canyons) and higher values indicate open sky.
+        - How: extracted from `lcz_get_parameters(lcz)` output (key `SVFmean`) and saved as `output/sky_view_factor/sky_view_factor_mean_map.tif`.
+        - Units & range: unitless, normalized to ~[0,1]. Use as-is for relative comparisons or incorporate into radiation/thermal models.
+        - Notes: LCZ-derived SVF is a structural proxy and may differ from high-resolution hemispherical SVF derived from LiDAR or fisheye imagery.
+
+      - `heat_capacity_map.R` (Surface Admittance / SADmean)
+        - What: proxy for surface heat capacity or surface admittance (how quickly surfaces heat/cool). LCZ4r exposes a `SADmean` parameter summarizing material thermal response per LCZ class.
+        - How: extracted from `lcz_get_parameters(lcz)` as `SADmean` and written to `output/heat_capacity/heat_capacity_mean_map.tif`.
+        - Units & range: unitless proxy (the original LCZ4r parameterization uses normalized indices). Treat as relative metric; use caution when combining with physical units.
+        - Notes: Intended for comparative mapping (which areas store/release heat faster), not as a direct physical specific heat capacity without calibration.
+
+      - `anthropogenic_heat_map.R` (AHmean)
+        - What: anthropogenic heat flux proxy per pixel (heat released by human activities, traffic, buildings, industry) expressed as an LCZ-derived mean value (`AHmean`).
+        - How: extracted from `lcz_get_parameters(lcz)` as `AHmean` and written to `output/anthropogenic_heat/anthropogenic_heat_mean_map.tif`.
+        - Units & range: LCZ4r provides a relative index (not necessarily W/m²). Use as a relative indicator of anthropogenic heat intensity.
+        - Notes: Use with care — AH patterns are inferred from LCZ class and typical activity patterns, not direct flux measurements.
+
+      - `aspect_ratio_map.R` (ARmean)
+        - What: building aspect ratio proxy (height-to-width characteristics) summarized per pixel (`ARmean`). Higher values indicate taller/narrower canyons; lower values indicate flatter/open areas.
+        - How: extracted from `lcz_get_parameters(lcz)` as `ARmean` and written to `output/aspect_ratio/aspect_ratio_mean_map.tif`.
+        - Units & range: unitless ratio; interpret comparatively across the study area.
+        - Notes: Aspect ratio helps explain radiative trapping and microclimate differences in urban canyons; for physical modeling, combine with SVF and height metrics.
+
+    - General notes for LCZ-derived metrics:
+      - The metrics are derived from LCZ class assignments and the `LCZ4r` parameter lookup. They are designed for relative mapping and hypothesis testing rather than providing absolute physical measurements.
+      - If you need physical units (e.g., W/m² for AH), you must calibrate LCZ-derived indices against measurements or literature values for your study area.
+      
 
 - `Landsat/` — place raw Landsat TIFFs here (folder structure optional). The preprocessor finds TIFFs recursively under this folder.
 
