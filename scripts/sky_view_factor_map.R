@@ -7,7 +7,7 @@ lcz_file <- 'output/lcz_map_greater_tunis.tif'
 if (!file.exists(lcz_file)) {
   message('LCZ raster not found. Generating with lcz_get_map() ...')
   roi <- build_roi()
-  lcz <- lcz_get_map(roi = roi, isave_map = TRUE)
+  generate_lcz_map(roi)
 } else {
   lcz <- rast(lcz_file)
 }

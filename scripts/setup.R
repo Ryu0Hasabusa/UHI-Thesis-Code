@@ -7,7 +7,7 @@
 #   LCZ4R_GITHUB_REPO (e.g. ByMaxAnjos/LCZ4r)
 #   LCZ4R_GITHUB_REF  (branch/tag)
 #   LCZ4R_FORCE_REINSTALL=TRUE to force reinstall
-
+source("scripts/common.R")
 message("== One-time setup ==")
 
 # Ensure a non-interactive CRAN mirror is set (prevents install.packages prompting)
@@ -39,5 +39,11 @@ if (need_install) {
 } else {
   message("LCZ4r already present (", as.character(packageVersion("LCZ4r")), ")")
 }
-
+library(LCZ4r)
+lcz_file <- 'output/lcz_map_greater_tunis.tif'
+if (!file.exists(lcz_file)) {
+  message('LCZ raster not found. Generating with lcz_get_map() ...')
+  roi <- build_roi()
+  generate_lcz_map(roi)
+}
 message("Setup complete.")
