@@ -10,7 +10,6 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
 # prefer precomputed median
 med_file <- file.path('output','landsat_medians','ST_EMIS_median.tif')
-med_file <- file.path('output','landsat_medians','ST_EMIS_median.tif')
 if (file.exists(med_file)) {
   emissivity <- rast(med_file)
 } else {
