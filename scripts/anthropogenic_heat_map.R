@@ -2,6 +2,7 @@ source("scripts/common.R")
 # Anthropogenic Heat Map from LCZ using lcz_get_parameters()
 library(terra)
 library(LCZ4r)
+message('Starting: anthropogenic_heat_map')
 lcz_file <- 'output/lcz_map_greater_tunis.tif'
 if (!file.exists(lcz_file)) {
   message('LCZ raster not found. Generating with lcz_get_map() ...')
@@ -13,6 +14,8 @@ if (!file.exists(lcz_file)) {
 params <- lcz_get_parameters(lcz)
 ah_mean <- params[["AHmean"]]
 if (!dir.exists("output/anthropogenic_heat")) dir.create("output/anthropogenic_heat", recursive = TRUE)
-writeRaster(ah_mean, "output/anthropogenic_heat/anthropogenic_heat_mean_map.tif", overwrite=TRUE)
-plot(ah_mean, main="Anthropogenic Heat (Mean, LCZ)")
+out_tif <- file.path("output","anthropogenic_heat","anthropogenic_heat_mean_map.tif")
+writeRaster(ah_mean, out_tif, overwrite=TRUE)
 png(file.path("output","anthropogenic_heat","anthropogenic_heat_mean_map.png")); plot(ah_mean, main="Anthropogenic Heat (Mean, LCZ)"); dev.off()
+message('Wrote raster: ', out_tif)
+message('Finished: anthropogenic_heat_map')

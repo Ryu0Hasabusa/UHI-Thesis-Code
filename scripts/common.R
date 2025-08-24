@@ -108,13 +108,34 @@ get_landsat_stack <- function(write_if_missing = TRUE) {
   stack_file <- file.path('input','LANDSAT','landsat_stack.tif')
   if (file.exists(stack_file)) return(rast(stack_file))
 
-  scene_dir <- file.path('input','LANDSAT','scenes')
-  if (!dir.exists(scene_dir)) return(NULL)
-  scene_files <- list.files(scene_dir, pattern = '_preproc\\.tif$', full.names = TRUE)
+  # prefer preprocessed per-scene stacks under output/landsat_scenes, fall back to input/LANDSAT/scenes
+  possible_dirs <- c(file.path('output','landsat_scenes'), file.path('input','LANDSAT','scenes'))
+  scene_files <- character()
+  for (d in possible_dirs) {
+    if (dir.exists(d)) {
+      sf <- list.files(d, pattern = '_preproc\\.tif$|_prepped\\.tif$', full.names = TRUE)
+      if (length(sf) > 0) { scene_files <- sf; break }
+    }
+  }
+  if (length(scene_files) == 0) return(NULL)
   if (length(scene_files) == 0) return(NULL)
 
-  # expected band names
-  band_names <- c('SR_B2','SR_B4','SR_B5','SR_B6','SR_B7','QA_PIXEL')
+  # expected band names (include thermal bands used elsewhere)
+  band_names <- c('SR_B2','SR_B4','SR_B5','SR_B6','SR_B7','ST_B10','ST_EMIS','QA_PIXEL')
+
+  # scale/offset metadata for bands (from Landsat metadata table)
+  # reflectance: value * scale + offset
+  scale_map <- list(
+    SR_B1 = list(scale = 2.75e-05, offset = -0.2),
+    SR_B2 = list(scale = 2.75e-05, offset = -0.2),
+    SR_B3 = list(scale = 2.75e-05, offset = -0.2),
+    SR_B4 = list(scale = 2.75e-05, offset = -0.2),
+    SR_B5 = list(scale = 2.75e-05, offset = -0.2),
+    SR_B6 = list(scale = 2.75e-05, offset = -0.2),
+    SR_B7 = list(scale = 2.75e-05, offset = -0.2),
+    ST_B10 = list(scale = 0.00341802, offset = 149),
+    ST_EMIS = list(scale = 0.0001, offset = 0)
+  )
 
   # reference grid = first valid scene
   ref <- rast(scene_files[[1]])
@@ -127,6 +148,17 @@ get_landsat_stack <- function(write_if_missing = TRUE) {
     r <- try(rast(sf), silent = TRUE)
     if (inherits(r, 'try-error')) next
     if (!all(band_names %in% names(r))) next
+    # apply band-specific scale/offset where available (skip QA_PIXEL and bitmasks)
+    for (bn in intersect(names(r), names(scale_map))) {
+      s <- scale_map[[bn]]
+      # defensive: only apply if scale is numeric
+      if (!is.null(s$scale) && is.numeric(s$scale)) {
+        r[[bn]] <- r[[bn]] * s$scale
+      }
+      if (!is.null(s$offset) && is.numeric(s$offset) && s$offset != 0) {
+        r[[bn]] <- r[[bn]] + s$offset
+      }
+    }
     # align CRS and resolution to reference
     if (!compareGeom(ref, r, stopOnError = FALSE, crs = TRUE, ext = FALSE, rowcol = FALSE)) r <- project(r, crs(ref))
     if (!compareGeom(ref, r, stopOnError = FALSE, rowcol = TRUE, crs = FALSE)) r <- resample(r, ref, method = 'bilinear')
@@ -138,9 +170,11 @@ get_landsat_stack <- function(write_if_missing = TRUE) {
   # if no valid scenes collected, abort
   if (all(sapply(scenes_by_band, length) == 0)) return(NULL)
 
-  # compute median for SR bands (first five); for QA produce NA layer
+  # compute median for SR bands and thermal bands; for QA produce NA layer
   median_bands <- list()
-  for (bn in band_names[1:5]) {
+  # compute for all bands except the final QA_PIXEL
+  compute_names <- band_names[band_names != 'QA_PIXEL']
+  for (bn in compute_names) {
     layers <- scenes_by_band[[bn]]
     if (length(layers) == 0) {
       median_bands[[bn]] <- ref[[1]]*NA
@@ -150,7 +184,7 @@ get_landsat_stack <- function(write_if_missing = TRUE) {
     }
   }
   median_stack <- rast(median_bands)
-  names(median_stack) <- band_names[1:5]
+  names(median_stack) <- compute_names
 
   qa_blank <- median_stack[[1]] * NA
   names(qa_blank) <- 'QA_PIXEL'

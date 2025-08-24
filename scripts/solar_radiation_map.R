@@ -9,6 +9,7 @@
 
 library(terra)
 
+message('Starting: solar_radiation_map')
 cat('== Solar radiation (relative exposure) map ==\n')
 Sys.setenv(GDAL_NUM_THREADS = 'ALL_CPUS')
 terraOptions(memfrac = 0.6)
@@ -39,12 +40,18 @@ if (is.null(dem_path)) {
 		}
 	}
 
-	# fallback: derive bbox from first preprocessed scene if available
-	if (is.null(roi_sf)) {
-		scene_dir <- file.path('input','LANDSAT','scenes')
-		scene_files <- list.files(scene_dir, pattern = '_preproc\\.tif$', full.names = TRUE)
-		if (length(scene_files) > 0) {
-			ref <- try(rast(scene_files[[1]]), silent = TRUE)
+		# fallback: derive bbox from first preprocessed scene if available
+		if (is.null(roi_sf)) {
+				possible_dirs <- c(file.path('output','landsat_scenes'), file.path('input','LANDSAT','scenes'))
+				scene_files <- character()
+				for (d in possible_dirs) {
+					if (dir.exists(d)) {
+						sf <- list.files(d, pattern = '_preproc\\.tif$|_prepped\\.tif$', full.names = TRUE)
+						if (length(sf) > 0) { scene_files <- sf; break }
+					}
+				}
+				if (length(scene_files) > 0) {
+						ref <- try(rast(scene_files[[1]]), silent = TRUE)
 			if (!inherits(ref, 'try-error')) {
 				e <- ext(ref)
 				# create simple polygon in ref CRS then reproject to WGS84
@@ -154,3 +161,5 @@ plot(annual_rel, main = 'Relative Annual Solar Exposure (0-1)')
 dev.off()
 
 cat('Done. Outputs in', out_dir, '\n')
+message('Wrote raster: ', out_tif)
+message('Finished: solar_radiation_map')

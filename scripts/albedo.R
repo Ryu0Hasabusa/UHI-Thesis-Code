@@ -18,16 +18,25 @@
 
 library(terra)
 
+message('Starting: albedo')
 out_dir <- "output/albedo"
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 cat("== Albedo builder (temporal composite) ==\n")
 
 # Use preprocessed per-scene stacks created by scripts/landsat_scene_prep.R
-scene_dir <- file.path('input','LANDSAT','scenes')
-scene_files <- list.files(scene_dir, pattern = '_preproc\\.tif$', full.names = TRUE)
-if (length(scene_files) == 0) stop('No preprocessed scene files found in input/LANDSAT/scenes/. Run scripts/landsat_scene_prep.R first.')
-cat('Found', length(scene_files), 'preprocessed scene files\n')
+# prefer the newer output folder, fall back to the original input/LANDSAT/scenes
+possible_dirs <- c(file.path('output','landsat_scenes'), file.path('input','LANDSAT','scenes'))
+scene_files <- character()
+used_dir <- NULL
+for (d in possible_dirs) {
+  if (dir.exists(d)) {
+    sf <- list.files(d, pattern = '_preproc\\.tif$|_prepped\\.tif$', full.names = TRUE)
+    if (length(sf) > 0) { scene_files <- sf; used_dir <- d; break }
+  }
+}
+if (length(scene_files) == 0) stop('No preprocessed scene files found in output/landsat_scenes/ or input/LANDSAT/scenes/. Run scripts/landsat_scene_prep.R first.')
+cat('Found', length(scene_files), 'preprocessed scene files in', used_dir, '\n')
 
 # QA bit definitions (Landsat Collection 2 QA_PIXEL)
 cloud_bit  <- as.integer(bitwShiftL(1, 5))
@@ -77,6 +86,7 @@ for (sf in scene_files) {
 }
 
 cat('Created', scene_count, 'per-scene albedo rasters\n')
+if (scene_count > 0) message('Wrote per-scene albedo files (example): ', per_scene_albedo[[1]])
 if (scene_count == 0) stop('No per-scene albedo rasters created; aborting composite')
 
 # Stack aligned per-scene rasters and compute median composite + obs count
@@ -107,3 +117,6 @@ plot(aggregate(obs_count, fact=10), main='Albedo observation count', col=terrain
 dev.off()
 
 cat('Temporal composite complete. Outputs in', out_dir, '\n')
+message('Wrote median composite: ', file.path(out_dir, 'albedo_median_composite.tif'))
+message('Wrote obs count:        ', file.path(out_dir, 'albedo_obs_count.tif'))
+message('Finished: albedo')
