@@ -134,7 +134,13 @@ Rscript scripts/surface_emissivity_map.R
 - `output/albedo/` — albedo outputs (if `scripts/albedo.R` is run)
 
 ## DEM behavior
-- The solar radiation script looks for a local DEM at `input/DEM/dem.tif` (or a few other common locations). If no DEM is found it will try to fetch one using `elevatr::get_elev_raster()` and the ROI derived from `scripts/common.R::build_roi()` or from the extent of preprocessed scenes. Network access is required to fetch a DEM.
+- The solar radiation script looks for a local DEM at `input/DEM/dem.tif` (or a few other common locations). If no DEM is found it fetches a DEM with `elevatr::get_elev_raster()` using the ROI from `scripts/common.R::build_roi()` (or a fallback extent from preprocessed scenes), then saves it to `input/DEM/dem.tif`.
+- Source and settings (defaults used in this repo):
+  - Source: AWS Open Data Terrain Tiles via `elevatr` (i.e., `src = "aws"`).
+  - Zoom: `z = 12` (ground resolution depends on latitude; see `elevatr` docs).
+  - Clip: `clip = "locations"` (DEM is clipped to the ROI geometry).
+  - CRS: written as a GeoTIFF in the ROI’s CRS.
+- Alternative sources supported by `elevatr` (not enabled by default here): OpenTopography global datasets (e.g., `src = "gl3"`, `"gl1"`, `"alos"`, or `"srtm15plus"`). Some sources may require an API key; see `elevatr` documentation. Attribution: AWS Terrain Tiles aggregate 3DEP, SRTM, GMTED2010, and ETOPO1 content (per `elevatr` docs).
 
 ## License
 See `LCZ4r/LICENSE` for the LCZ4r package license. Other repository scripts are MIT unless otherwise stated.
