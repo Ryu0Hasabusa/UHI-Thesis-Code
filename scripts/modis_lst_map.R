@@ -28,12 +28,39 @@ if (length(files) == 0) stop('No MODIS files found. Place MODIS LST files under 
 is_day <- function(x) grepl('LST_Day|LST_Day_1km|_Day_', x, ignore.case = TRUE)
 is_night <- function(x) grepl('LST_Night|LST_Night_1km|_Night_', x, ignore.case = TRUE)
 
-# Scale/convert a SpatRaster already loaded
+# Detect units and convert to Celsius robustly (handles DN, Kelvin, or already Celsius)
 scale_lst_celsius <- function(r) {
   if (is.null(r)) return(NULL)
-  # MODIS LST scale factor 0.02 K per unit; invalids often 0
-  r <- clamp(r, 0, Inf)
-  r * 0.02 - 273.15
+  # Sample statistics to infer units
+  stats <- try(global(r, fun = median, na.rm = TRUE)[1,1], silent = TRUE)
+  medv <- if (inherits(stats, 'try-error') || is.na(stats)) NA_real_ else as.numeric(stats)
+  # Also check min/max to refine
+  rng <- try(global(r, fun = range, na.rm = TRUE), silent = TRUE)
+  vmin <- if (inherits(rng, 'try-error')) NA_real_ else as.numeric(rng[1,1])
+  vmax <- if (inherits(rng, 'try-error')) NA_real_ else as.numeric(rng[2,1])
+
+  # Decide units heuristically
+  # - DN: values typically 1000–20000
+  # - Kelvin: 200–400
+  # - Celsius: -50–70
+  mode <- 'dn'
+  if (!is.na(medv)) {
+    if (medv > 200 && medv < 400) mode <- 'kelvin'
+    else if (medv > -80 && medv < 80) mode <- 'celsius'
+    else mode <- 'dn'
+  }
+
+  if (mode == 'kelvin') {
+    message('Detected units: Kelvin → converting to °C')
+    return(r - 273.15)
+  } else if (mode == 'celsius') {
+    message('Detected units: Celsius → keeping as °C')
+    return(r)
+  } else {
+    message('Detected units: DN → applying 0.02 K scale then to °C')
+    r <- clamp(r, 0, Inf)
+    return(r * 0.02 - 273.15)
+  }
 }
 
 # Load from path (GeoTIFF or similar), then scale
