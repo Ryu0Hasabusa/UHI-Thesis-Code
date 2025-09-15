@@ -160,6 +160,11 @@ png(file.path(out_dir, 'solar_radiation_relative_annual.png'), width = 900, heig
 plot(annual_rel, main = 'Relative Annual Solar Exposure (0-1)')
 dev.off()
 
+# CSV export (hardcoded)
+sr_df <- as.data.frame(annual_rel, xy = TRUE, cells = FALSE, na.rm = TRUE)
+names(sr_df) <- c('x','y','solar_rel_annual')
+write.csv(sr_df, file.path(out_dir, 'solar_radiation_relative_annual.csv'), row.names = FALSE)
+
 cat('Done. Outputs in', out_dir, '\n')
 message('Wrote raster: ', out_tif)
 message('Finished: solar_radiation_map')

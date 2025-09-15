@@ -48,5 +48,10 @@ cols <- if (requireNamespace('viridis', quietly = TRUE)) viridis::viridis(100) e
 plot(aggregate(alb, fact=10), main='Albedo median composite', col=cols, colNA='white')
 dev.off()
 
+# CSV export (hardcoded)
+alb_df <- as.data.frame(alb, xy = TRUE, cells = FALSE, na.rm = TRUE)
+names(alb_df) <- c('x','y','albedo')
+write.csv(alb_df, file.path(out_dir, 'albedo_median_composite.csv'), row.names = FALSE)
+
 message('Wrote median composite: ', out_tif)
 message('Finished: albedo')
