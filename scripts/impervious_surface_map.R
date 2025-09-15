@@ -8,6 +8,7 @@ if (!file.exists(lcz_file)) {
   message('LCZ raster not found. Generating with lcz_get_map() ...')
   roi <- build_roi()
   generate_lcz_map(roi)
+  lcz <- rast(lcz_file)
 } else {
   lcz <- rast(lcz_file)
 }
@@ -17,5 +18,9 @@ if (!dir.exists("output/impervious_surface")) dir.create("output/impervious_surf
 out_tif <- file.path("output", "impervious_surface", "impervious_surface_mean_map.tif")
 writeRaster(isf_mean, out_tif, overwrite=TRUE)
 png(file.path("output", "impervious_surface", "impervious_surface_mean_map.png")); plot(isf_mean, main="Impervious Surface Fraction (Mean, LCZ)"); dev.off()
+# CSV export (hardcoded)
+isf_df <- as.data.frame(isf_mean, xy = TRUE, cells = FALSE, na.rm = TRUE)
+names(isf_df) <- c("x","y","ISFmean")
+write.csv(isf_df, file.path("output", "impervious_surface", "impervious_surface_mean_map.csv"), row.names = FALSE)
 message('Wrote raster: ', out_tif)
 message('Finished: impervious_surface_map')

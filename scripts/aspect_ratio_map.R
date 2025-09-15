@@ -8,6 +8,7 @@ if (!file.exists(lcz_file)) {
   message('LCZ raster not found. Generating with lcz_get_map() ...')
   roi <- build_roi()
   lcz <- lcz_get_map(roi = roi, isave_map = TRUE)
+  lcz <- rast(lcz_file)
 } else {
   lcz <- rast(lcz_file)
 }
@@ -18,5 +19,9 @@ if (!dir.exists("output/aspect_ratio")) dir.create("output/aspect_ratio", recurs
 out_tif <- file.path("output", "aspect_ratio", "aspect_ratio_mean_map.tif")
 writeRaster(ar_mean, out_tif, overwrite=TRUE)
 png(file.path("output", "aspect_ratio", "aspect_ratio_mean_map.png")); plot(ar_mean, main="Aspect Ratio (Mean, LCZ)"); dev.off()
+# CSV export (hardcoded)
+ar_df <- as.data.frame(ar_mean, xy = TRUE, cells = FALSE, na.rm = TRUE)
+names(ar_df) <- c("x","y","ARmean")
+write.csv(ar_df, file.path("output", "aspect_ratio", "aspect_ratio_mean_map.csv"), row.names = FALSE)
 message('Wrote raster: ', out_tif)
 message('Finished: aspect_ratio_map')
