@@ -17,60 +17,31 @@ message('Starting: modis_lst_map')
 out_dir <- file.path('output','modis_lst')
 if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
-# Discover files
+"# Discover files"
 cand_dirs <- c(file.path('input','MODIS'), 'MODIS', file.path('input','modis'))
 files <- character()
 for (d in cand_dirs) if (dir.exists(d)) files <- c(files, list.files(d, recursive = TRUE, full.names = TRUE))
 
 if (length(files) == 0) stop('No MODIS files found. Place MODIS LST files under input/MODIS or MODIS/.')
 
-# Helper: identify LST Day/Night bands
+# Helper: identify LST Day/Night in filenames (for GeoTIFF fallback)
 is_day <- function(x) grepl('LST_Day|LST_Day_1km|_Day_', x, ignore.case = TRUE)
 is_night <- function(x) grepl('LST_Night|LST_Night_1km|_Night_', x, ignore.case = TRUE)
 
-# If HDF, try to resolve subdatasets via GDAL-style syntax if needed
-expand_hdf <- function(path) {
-  ext <- tolower(file_ext(path))
-  if (ext %in% c('hdf','h5')) {
-    # terra can often read via gdal subdataset index if provided
-    # Here we return the original path; downstream we try vector of subdatasets if needed
-    return(path)
-  }
-  path
-}
-
-files <- vapply(files, expand_hdf, character(1))
-
-# Filter candidates
-day_cands <- files[is_day(files)]
-night_cands <- files[is_night(files)]
-
-if (length(day_cands) + length(night_cands) == 0) {
-  # fallback: try generic naming
-  day_cands <- files[grepl('Day', files, ignore.case = TRUE)]
-  night_cands <- files[grepl('Night', files, ignore.case = TRUE)]
-}
-
-message('Found: ', length(day_cands), ' day files; ', length(night_cands), ' night files')
-
-read_scale_celsius <- function(path) {
-  r <- try(rast(path), silent = TRUE)
-  if (inherits(r, 'try-error')) return(NULL)
-  # If multi-layer, pick first layer heuristically
-  if (nlyr(r) > 1) r <- r[[1]]
+# Scale/convert a SpatRaster already loaded
+scale_lst_celsius <- function(r) {
+  if (is.null(r)) return(NULL)
   # MODIS LST scale factor 0.02 K per unit; invalids often 0
   r <- clamp(r, 0, Inf)
-  r <- r * 0.02 - 273.15
-  r
+  r * 0.02 - 273.15
 }
 
-read_many <- function(paths) {
-  rs <- list()
-  for (p in paths) {
-    rr <- read_scale_celsius(p)
-    if (!is.null(rr)) rs[[length(rs)+1]] <- rr
-  }
-  rs
+# Load from path (GeoTIFF or similar), then scale
+read_scale_celsius_from_path <- function(path) {
+  r <- try(rast(path), silent = TRUE)
+  if (inherits(r, 'try-error')) return(NULL)
+  if (nlyr(r) > 1) r <- r[[1]]
+  scale_lst_celsius(r)
 }
 
 build_median <- function(lst) {
@@ -93,10 +64,61 @@ build_median <- function(lst) {
 }
 
 # Read and composite
-message('Reading day files...')
-day_list <- read_many(day_cands)
-message('Reading night files...')
-night_list <- read_many(night_cands)
+day_list <- list()
+night_list <- list()
+
+# First, parse any HDF/H5 files and extract LST_Day_1km / LST_Night_1km subdatasets
+hdf_idx <- grepl('\\.hdf$|\\.h5$', files, ignore.case = TRUE)
+if (any(hdf_idx)) {
+  hdf_files <- files[hdf_idx]
+  for (p in hdf_files) {
+    s <- try(sds(p), silent = TRUE)
+    if (inherits(s, 'try-error')) next
+    s_names <- names(s)
+    i_day <- grep('LST.*Day.*1km|LST_Day_1km', s_names, ignore.case = TRUE)
+    i_night <- grep('LST.*Night.*1km|LST_Night_1km', s_names, ignore.case = TRUE)
+    if (length(i_day) > 0) {
+      r <- try(s[[i_day[1]]], silent = TRUE)
+      if (!inherits(r, 'try-error')) {
+        r <- scale_lst_celsius(r)
+        if (!is.null(r)) day_list[[length(day_list)+1]] <- r
+      }
+    }
+    if (length(i_night) > 0) {
+      r <- try(s[[i_night[1]]], silent = TRUE)
+      if (!inherits(r, 'try-error')) {
+        r <- scale_lst_celsius(r)
+        if (!is.null(r)) night_list[[length(night_list)+1]] <- r
+      }
+    }
+  }
+}
+
+# Next, handle non-HDF files (GeoTIFF, etc.) using filename heuristics
+non_hdf <- files[!hdf_idx]
+if (length(non_hdf) > 0) {
+  day_cands <- non_hdf[is_day(non_hdf)]
+  night_cands <- non_hdf[is_night(non_hdf)]
+  if (length(day_cands) + length(night_cands) == 0) {
+    # fallback: generic naming
+    day_cands <- non_hdf[grepl('Day', non_hdf, ignore.case = TRUE)]
+    night_cands <- non_hdf[grepl('Night', non_hdf, ignore.case = TRUE)]
+  }
+  if (length(day_cands) > 0) {
+    for (p in day_cands) {
+      rr <- read_scale_celsius_from_path(p)
+      if (!is.null(rr)) day_list[[length(day_list)+1]] <- rr
+    }
+  }
+  if (length(night_cands) > 0) {
+    for (p in night_cands) {
+      rr <- read_scale_celsius_from_path(p)
+      if (!is.null(rr)) night_list[[length(night_list)+1]] <- rr
+    }
+  }
+}
+
+message('Collected: ', length(day_list), ' day layer(s); ', length(night_list), ' night layer(s)')
 
 message('Building medians...')
 day_med <- build_median(day_list)
