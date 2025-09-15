@@ -82,24 +82,25 @@ if (any(hdf_idx)) {
     is_day_file <- grepl('(A1D|A2D|_D\\.)', base, ignore.case = TRUE) # e.g., MOD21A1D or *_D.hdf
     is_night_file <- grepl('(A1N|A2N|_N\\.)', base, ignore.case = TRUE) # e.g., MOD21A1N or *_N.hdf
 
-    picked <- FALSE
+    picked_day <- FALSE
+    picked_night <- FALSE
     if (length(i_day) > 0) {
       r <- try(s[[i_day[1]]], silent = TRUE)
       if (!inherits(r, 'try-error')) {
         r <- scale_lst_celsius(r)
-        if (!is.null(r)) { day_list[[length(day_list)+1]] <- r; picked <- TRUE }
+        if (!is.null(r)) { day_list[[length(day_list)+1]] <- r; picked_day <- TRUE }
       }
     }
     if (length(i_night) > 0) {
       r <- try(s[[i_night[1]]], silent = TRUE)
       if (!inherits(r, 'try-error')) {
         r <- scale_lst_celsius(r)
-        if (!is.null(r)) { night_list[[length(night_list)+1]] <- r; picked <- TRUE }
+        if (!is.null(r)) { night_list[[length(night_list)+1]] <- r; picked_night <- TRUE }
       }
     }
 
     # If not picked yet, handle MOD21A1D/N which expose LST_1KM without Day/Night in name
-    if (!picked) {
+    if (!(picked_day || picked_night)) {
       i_lst_any <- grep('^LST(_.*)?1KM$|^LST(_.*)?$', s_names, ignore.case = TRUE)
       if (length(i_lst_any) > 0) {
         r <- try(s[[i_lst_any[1]]], silent = TRUE)
@@ -107,18 +108,39 @@ if (any(hdf_idx)) {
           r <- scale_lst_celsius(r)
           if (!is.null(r)) {
             if (is_day_file && !is_night_file) {
-              day_list[[length(day_list)+1]] <- r; picked <- TRUE
+              day_list[[length(day_list)+1]] <- r; picked_day <- TRUE
             } else if (is_night_file && !is_day_file) {
-              night_list[[length(night_list)+1]] <- r; picked <- TRUE
+              night_list[[length(night_list)+1]] <- r; picked_night <- TRUE
             } else {
               # Unknown; default to day list but note ambiguity
-              day_list[[length(day_list)+1]] <- r; picked <- TRUE
+              day_list[[length(day_list)+1]] <- r; picked_day <- TRUE
               message('Ambiguous LST subdataset in ', base, ' (no Day/Night label). Assigned to Day by default.')
             }
           }
         }
       } else {
-        message('No LST subdataset matched in ', base, '. Names: ', paste(s_names, collapse = ', '))
+        # As a final fallback for MOD11A1/MYD11A1, use known indices (1=Day, 5=Night) when available
+        if (grepl('MOD11A1|MYD11A1', base, ignore.case = TRUE)) {
+          if (!picked_day && length(s) >= 1) {
+            r <- try(s[[1]], silent = TRUE)
+            if (!inherits(r, 'try-error')) {
+              r <- scale_lst_celsius(r)
+              if (!is.null(r)) { day_list[[length(day_list)+1]] <- r; picked_day <- TRUE }
+            }
+          }
+          if (!picked_night && length(s) >= 5) {
+            r <- try(s[[5]], silent = TRUE)
+            if (!inherits(r, 'try-error')) {
+              r <- scale_lst_celsius(r)
+              if (!is.null(r)) { night_list[[length(night_list)+1]] <- r; picked_night <- TRUE }
+            }
+          }
+          if (!(picked_day || picked_night)) {
+            message('No LST subdataset matched in ', base, '. Names: ', paste(s_names, collapse = ', '))
+          }
+        } else {
+          message('No LST subdataset matched in ', base, '. Names: ', paste(s_names, collapse = ', '))
+        }
       }
     }
   }
