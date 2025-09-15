@@ -4,11 +4,14 @@
 # - Supports GeoTIFF exports or HDF subdatasets (if GDAL supports HDF)
 # - Scales according to MOD11A1/MYD11A1 convention (scale=0.02 K)
 # - Converts to Celsius and writes median composites for Day and Night
+# - Crops/masks outputs to the ROI used elsewhere (build_roi from scripts/common.R)
 
 suppressPackageStartupMessages({
   library(terra)
   library(tools)
+  library(sf)
 })
+source('scripts/common.R')
 
 message('Starting: modis_lst_map')
 out_dir <- file.path('output','modis_lst')
@@ -98,6 +101,19 @@ night_list <- read_many(night_cands)
 message('Building medians...')
 day_med <- build_median(day_list)
 night_med <- build_median(night_list)
+
+# Crop to ROI if medians exist
+crop_to_roi <- function(r) {
+  if (is.null(r)) return(NULL)
+  roi <- build_roi()
+  vroi <- vect(roi)
+  vroi <- project(vroi, crs(r))
+  r2 <- crop(r, vroi)
+  mask(r2, vroi)
+}
+
+day_med <- crop_to_roi(day_med)
+night_med <- crop_to_roi(night_med)
 
 # Write outputs
 if (!is.null(day_med)) {
