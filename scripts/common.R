@@ -34,7 +34,7 @@ build_roi <- function() {
     if (length(parts) == 4) manual_bbox <- suppressWarnings(as.numeric(parts))
     if (any(is.na(manual_bbox))) stop("Invalid GT_MANUAL_BBOX config.")
   }
-  names_list <- c("Tunis Governorate", "Ariana Governorate", "Ben Arous Governorate", "Manouba Governorate")
+  names_list <- c("Tunis Governorate")
   get_poly <- function(nm) {
     if (use_exact) {
       poly_obj <- try(getbb(nm, format_out = "sf_polygon", limit = 1), silent = TRUE)
@@ -94,7 +94,7 @@ generate_lcz_map <- function(roi) {
   try(sf::st_write(roi, file.path("output", "greater_tunis_roi.geojson"), delete_dsn = TRUE, quiet = TRUE), silent = TRUE)
   png_file <- file.path("output", "lcz_map_greater_tunis.png")
   png(png_file, width=1000, height=800)
-  terra::plot(lcz_byte, col = cols, main = "Greater Tunis LCZ", axes = FALSE)
+  terra::plot(lcz_byte, col = cols, main = "Tunis LCZ", axes = FALSE)
   plot(sf::st_geometry(roi), add = TRUE, border = 'cyan', lwd = 2)
   dev.off()
   message("Saved: ", ras_file, "; ROI: ", roi_file, "; PNG: ", png_file)
